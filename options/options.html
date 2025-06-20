@@ -14,15 +14,37 @@
         </header>
         
         <main>
-            <div class="wordlist-section">
-                <label for="wordlist-textarea">JLPT 词汇表:</label>
-                <textarea 
-                    id="wordlist-textarea" 
-                    placeholder="请输入词汇，每行一个单词&#10;例如:&#10;解析&#10;理解&#10;勉強&#10;学習"
-                    rows="20"
-                ></textarea>
-                <div class="textarea-info">
-                    <span id="word-count">0 个词汇</span>
+            <div class="settings-section">
+                <div class="wordlist-section">
+                    <label for="wordlist-textarea">JLPT 词汇表:</label>
+                    <textarea 
+                        id="wordlist-textarea" 
+                        placeholder="请输入词汇，每行一个单词&#10;例如:&#10;解析&#10;理解&#10;勉強&#10;学習"
+                        rows="15"
+                    ></textarea>
+                    <div class="textarea-info">
+                        <span id="word-count">0 个词汇</span>
+                    </div>
+                </div>
+                
+                <div class="hotkey-section">
+                    <label for="hotkey-input">捕获快捷键:</label>
+                    <input 
+                        type="text" 
+                        id="hotkey-input" 
+                        maxlength="1" 
+                        placeholder="S"
+                        title="单击输入框，然后按下您想要的按键"
+                    >
+                    <p class="hotkey-help">点击输入框，然后按下任意字母键作为快捷键</p>
+                </div>
+                
+                <div class="debug-section">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="debug-checkbox" checked>
+                        <span class="checkmark"></span>
+                        启用调试模式（在控制台显示详细日志）
+                    </label>
                 </div>
             </div>
             
@@ -35,7 +57,7 @@
                 <h3>使用说明:</h3>
                 <ul>
                     <li>在 Netflix 观看日语内容时，高亮显示的词汇将自动标记</li>
-                    <li>将鼠标悬停在高亮词汇上，按 <kbd>S</kbd> 键保存卡片</li>
+                    <li>将鼠标悬停在高亮词汇上，按快捷键保存卡片</li>
                     <li>在扩展弹窗中查看和导出已保存的卡片</li>
                 </ul>
             </div>
