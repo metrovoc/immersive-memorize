@@ -3,8 +3,8 @@
     
     let jlptWordlist = [];
     let learnedWords = new Set(); // 已学过的单词集合
-    let currentHoveredElement = null;
-    let hoverTimeout = null;
+    let currentTargetWord = null; // 当前目标单词
+    let currentTargetElement = null; // 当前目标元素
     let observer = null;
     let captureHotkey = 's';
     let debugMode = true;
@@ -24,6 +24,7 @@
                 console.log(`[Immersive Memorize] 已加载 ${jlptWordlist.length} 个词汇`);
                 console.log(`[Immersive Memorize] 已学 ${learnedWords.size} 个词汇`);
                 console.log(`[Immersive Memorize] 捕获快捷键: ${captureHotkey.toUpperCase()}`);
+                console.log(`[Immersive Memorize] 顺序学习模式：每次仅显示一个生词`);
             }
             
             startSubtitleObserver();
@@ -47,7 +48,7 @@
                     
                     subtitleContainers.forEach(container => {
                         if (!container.dataset.imProcessed) {
-                            highlightWords(container);
+                            highlightFirstUnlearnedWord(container);
                             container.dataset.imProcessed = 'true';
                         }
                     });
@@ -62,8 +63,11 @@
         });
     }
     
-    function highlightWords(container) {
+    function highlightFirstUnlearnedWord(container) {
         if (!container || jlptWordlist.length === 0) return;
+        
+        // 清除之前的高亮
+        clearAllHighlights();
         
         const walker = document.createTreeWalker(
             container,
@@ -79,61 +83,104 @@
             textNodes.push(node);
         }
         
-        textNodes.forEach(textNode => {
-            let text = textNode.textContent;
-            let hasHighlight = false;
+        // 查找第一个未学的词汇
+        for (let textNode of textNodes) {
+            const text = textNode.textContent;
             
-            jlptWordlist.forEach(word => {
+            for (let word of jlptWordlist) {
                 if (word && text.includes(word) && !learnedWords.has(word)) {
-                    const regex = new RegExp(`(${escapeRegExp(word)})`, 'g');
-                    text = text.replace(regex, '<span class="im-highlight">$1</span>');
-                    hasHighlight = true;
+                    // 找到第一个未学词汇，高亮它
+                    highlightSingleWord(textNode, word);
+                    currentTargetWord = word;
+                    
+                    if (debugMode) {
+                        console.log(`[Immersive Memorize] 当前目标词汇: ${word}`);
+                    }
+                    
+                    return; // 只高亮第一个找到的词汇
                 }
-            });
-            
-            if (hasHighlight) {
-                const span = document.createElement('span');
-                span.innerHTML = text;
-                textNode.parentNode.replaceChild(span, textNode);
+            }
+        }
+        
+        // 如果没有找到未学词汇
+        currentTargetWord = null;
+        currentTargetElement = null;
+        
+        if (debugMode) {
+            console.log('[Immersive Memorize] 当前字幕无未学词汇');
+        }
+    }
+    
+    function highlightSingleWord(textNode, word) {
+        const text = textNode.textContent;
+        const wordIndex = text.indexOf(word);
+        
+        if (wordIndex === -1) return;
+        
+        // 分割文本节点
+        const beforeText = text.substring(0, wordIndex);
+        const afterText = text.substring(wordIndex + word.length);
+        
+        // 创建高亮元素
+        const highlightSpan = document.createElement('span');
+        highlightSpan.className = 'im-highlight im-current-target';
+        highlightSpan.textContent = word;
+        highlightSpan.style.cssText = `
+            background-color: #ff9800 !important;
+            color: #000 !important;
+            padding: 2px 4px !important;
+            border-radius: 4px !important;
+            font-weight: bold !important;
+            border: 2px solid #f57c00 !important;
+            box-shadow: 0 0 8px rgba(255, 152, 0, 0.6) !important;
+            animation: pulse 2s infinite !important;
+        `;
+        
+        // 添加脉冲动画
+        if (!document.getElementById('im-target-styles')) {
+            const style = document.createElement('style');
+            style.id = 'im-target-styles';
+            style.textContent = `
+                @keyframes pulse {
+                    0% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
+                    50% { box-shadow: 0 0 15px rgba(255, 152, 0, 0.9); }
+                    100% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
+                }
+            `;
+            document.head.appendChild(style);
+        }
+        
+        const parent = textNode.parentNode;
+        
+        // 插入分割后的内容
+        if (beforeText) {
+            parent.insertBefore(document.createTextNode(beforeText), textNode);
+        }
+        
+        parent.insertBefore(highlightSpan, textNode);
+        
+        if (afterText) {
+            parent.insertBefore(document.createTextNode(afterText), textNode);
+        }
+        
+        // 移除原始文本节点
+        parent.removeChild(textNode);
+        
+        // 设置当前目标元素
+        currentTargetElement = highlightSpan;
+    }
+    
+    function clearAllHighlights() {
+        const highlights = document.querySelectorAll('.im-highlight');
+        highlights.forEach(highlight => {
+            const parent = highlight.parentNode;
+            if (parent) {
+                parent.replaceChild(document.createTextNode(highlight.textContent), highlight);
+                parent.normalize();
             }
         });
         
-        const highlights = container.querySelectorAll('.im-highlight');
-        highlights.forEach(highlight => {
-            highlight.style.backgroundColor = '#ffeb3b';
-            highlight.style.color = '#000';
-            highlight.style.padding = '1px 2px';
-            highlight.style.borderRadius = '2px';
-            highlight.style.cursor = 'pointer';
-            highlight.style.fontWeight = 'bold';
-            
-            highlight.addEventListener('mouseenter', (e) => {
-                // 清除之前的超时
-                if (hoverTimeout) {
-                    clearTimeout(hoverTimeout);
-                }
-                
-                // 立即设置悬停状态
-                currentHoveredElement = e.target;
-                e.target.style.backgroundColor = '#ff9800';
-                
-                if (debugMode) {
-                    console.log('[Immersive Memorize] 鼠标悬停:', e.target.innerText);
-                }
-            });
-            
-            highlight.addEventListener('mouseleave', (e) => {
-                // 立即清除悬停状态
-                if (currentHoveredElement === e.target) {
-                    currentHoveredElement = null;
-                }
-                e.target.style.backgroundColor = '#ffeb3b';
-                
-                if (debugMode) {
-                    console.log('[Immersive Memorize] 鼠标离开');
-                }
-            });
-        });
+        currentTargetElement = null;
     }
     
     function escapeRegExp(string) {
@@ -141,22 +188,13 @@
     }
     
     function setupEventListeners() {
-        // 多重按键监听策略
         const keyHandler = async (e) => {
-            if (debugMode && e.key.toLowerCase() === captureHotkey.toLowerCase()) {
-                console.log('[Immersive Memorize] 按键检测:', {
-                    key: e.key,
-                    target: e.target,
-                    hoveredElement: currentHoveredElement,
-                    prevented: e.defaultPrevented
-                });
-            }
-            
             if (e.key.toLowerCase() === captureHotkey.toLowerCase()) {
-                if (!currentHoveredElement) {
+                if (!currentTargetWord) {
                     if (debugMode) {
-                        console.log('[Immersive Memorize] 无悬停元素，忽略按键');
+                        console.log('[Immersive Memorize] 当前无目标词汇，忽略按键');
                     }
+                    showNotification('当前无生词可学习', 'info');
                     return;
                 }
                 
@@ -165,37 +203,27 @@
                 e.stopImmediatePropagation();
                 
                 if (debugMode) {
-                    console.log('[Immersive Memorize] 开始捕获数据...');
+                    console.log(`[Immersive Memorize] 开始学习: ${currentTargetWord}`);
                 }
                 
                 await captureData();
             }
         };
         
-        // 在不同阶段添加事件监听器
-        document.addEventListener('keydown', keyHandler, true); // 捕获阶段
-        document.addEventListener('keydown', keyHandler, false); // 冒泡阶段
+        // 简化的事件监听
+        document.addEventListener('keydown', keyHandler, true);
         window.addEventListener('keydown', keyHandler, true);
         
-        // 额外的安全措施：直接在 body 上监听
-        if (document.body) {
-            document.body.addEventListener('keydown', keyHandler, true);
-        } else {
-            document.addEventListener('DOMContentLoaded', () => {
-                document.body.addEventListener('keydown', keyHandler, true);
-            });
-        }
-        
         if (debugMode) {
-            console.log('[Immersive Memorize] 按键监听器已设置');
+            console.log('[Immersive Memorize] 按键监听器已设置（顺序学习模式）');
         }
     }
     
     async function captureData() {
-        if (!currentHoveredElement) return;
+        if (!currentTargetWord || !currentTargetElement) return;
         
         try {
-            const word = currentHoveredElement.innerText;
+            const word = currentTargetWord;
             
             // 检查是否已经学过这个词
             if (learnedWords.has(word)) {
@@ -203,7 +231,7 @@
                 return;
             }
             
-            const sentenceElement = currentHoveredElement.closest(
+            const sentenceElement = currentTargetElement.closest(
                 '.player-timedtext-text-container, .ltr-1472gpj, [data-uia="player-caption-text"]'
             );
             const sentence = sentenceElement ? sentenceElement.innerText : '';
@@ -234,13 +262,30 @@
             // 立即添加到已学词汇集合
             learnedWords.add(word);
             
-            // 立即移除当前单词的高亮
-            removeWordHighlight(word);
+            // 清除当前高亮并寻找下一个词汇
+            clearAllHighlights();
+            currentTargetWord = null;
+            currentTargetElement = null;
+            
+            // 重新扫描当前字幕寻找下一个生词
+            setTimeout(() => {
+                const subtitleContainers = document.querySelectorAll(
+                    '.player-timedtext-text-container, ' +
+                    '.ltr-1472gpj, ' +
+                    '[data-uia="player-caption-text"]'
+                );
+                
+                subtitleContainers.forEach(container => {
+                    container.dataset.imProcessed = '';
+                    highlightFirstUnlearnedWord(container);
+                });
+            }, 100);
             
             if (debugMode) {
                 console.log(`[Immersive Memorize] 已保存卡片:`, cardData);
             }
-            showNotification(`已保存: ${word}`);
+            
+            showNotification(`✓ ${word} 已学习`);
             
         } catch (error) {
             console.error('[Immersive Memorize] 捕获数据失败:', error);
@@ -266,41 +311,26 @@
         }
     }
     
-    function removeWordHighlight(word) {
-        // 查找并移除指定单词的所有高亮
-        const highlights = document.querySelectorAll('.im-highlight');
-        highlights.forEach(highlight => {
-            if (highlight.innerText === word) {
-                const parent = highlight.parentNode;
-                if (parent) {
-                    // 用普通文本节点替换高亮元素
-                    const textNode = document.createTextNode(word);
-                    parent.replaceChild(textNode, highlight);
-                    
-                    // 合并相邻的文本节点
-                    parent.normalize();
-                }
-            }
-        });
-        
-        if (debugMode) {
-            console.log(`[Immersive Memorize] 已移除 "${word}" 的高亮`);
-        }
-    }
-    
     function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
-        let bgColor;
+        let bgColor, icon;
         
         switch(type) {
             case 'error':
                 bgColor = '#f44336';
+                icon = '✗';
                 break;
             case 'warning':
                 bgColor = '#ff9800';
+                icon = '⚠';
+                break;
+            case 'info':
+                bgColor = '#2196f3';
+                icon = 'ℹ';
                 break;
             default:
                 bgColor = '#4caf50';
+                icon = '✓';
         }
         
         notification.style.cssText = `
@@ -309,20 +339,20 @@
             right: 20px;
             background: ${bgColor};
             color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
+            padding: 12px 20px;
+            border-radius: 8px;
             z-index: 999999;
             font-family: Arial, sans-serif;
-            font-size: 14px;
+            font-size: 16px;
             font-weight: bold;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            border: 2px solid rgba(255,255,255,0.3);
-            max-width: 300px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            border: 2px solid rgba(255,255,255,0.2);
+            max-width: 350px;
             word-wrap: break-word;
             animation: slideIn 0.3s ease-out;
         `;
         
-        notification.textContent = message;
+        notification.textContent = `${icon} ${message}`;
         
         // 添加CSS动画
         if (!document.getElementById('im-notification-styles')) {
