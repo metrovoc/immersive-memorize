@@ -37,11 +37,19 @@ header p {
     font-size: 1.1em;
 }
 
-.wordlist-section {
+.settings-section {
     margin-bottom: 20px;
 }
 
-.wordlist-section label {
+.wordlist-section, .hotkey-section, .debug-section {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    border-left: 4px solid #4caf50;
+}
+
+.wordlist-section label, .hotkey-section label {
     display: block;
     font-weight: bold;
     font-size: 1.1em;
@@ -180,4 +188,54 @@ kbd {
 
 .notification.error {
     background-color: #f44336;
+}
+
+/* 快捷键设置样式 */
+#hotkey-input {
+    width: 100px;
+    padding: 10px 15px;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: bold;
+    text-align: center;
+    text-transform: uppercase;
+    background-color: #fff;
+    transition: all 0.3s ease;
+}
+
+#hotkey-input:focus {
+    outline: none;
+    border-color: #4caf50;
+    background-color: #f0f8ff;
+    box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+}
+
+.hotkey-help {
+    margin-top: 8px;
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+
+/* 复选框样式 */
+.debug-section {
+    border-left-color: #2196f3;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    font-size: 1em;
+    color: #2c3e50;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 10px;
+    transform: scale(1.2);
+}
+
+.checkbox-label:hover {
+    color: #1976d2;
 }

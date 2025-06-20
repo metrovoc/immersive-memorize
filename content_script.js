@@ -4,12 +4,20 @@
     let jlptWordlist = [];
     let currentHoveredElement = null;
     let observer = null;
+    let captureHotkey = 's';
+    let debugMode = true;
     
     async function init() {
         try {
-            const result = await chrome.storage.local.get(['jlptWordlist']);
+            const result = await chrome.storage.local.get(['jlptWordlist', 'captureHotkey', 'debugMode']);
             jlptWordlist = result.jlptWordlist || [];
-            console.log(`[Immersive Memorize] 已加载 ${jlptWordlist.length} 个词汇`);
+            captureHotkey = result.captureHotkey || 's';
+            debugMode = result.debugMode !== false;
+            
+            if (debugMode) {
+                console.log(`[Immersive Memorize] 已加载 ${jlptWordlist.length} 个词汇`);
+                console.log(`[Immersive Memorize] 捕获快捷键: ${captureHotkey.toUpperCase()}`);
+            }
             
             startSubtitleObserver();
             setupEventListeners();
@@ -95,6 +103,10 @@
             highlight.addEventListener('mouseenter', (e) => {
                 currentHoveredElement = e.target;
                 e.target.style.backgroundColor = '#ff9800';
+                
+                if (debugMode) {
+                    console.log('[Immersive Memorize] 鼠标悬停:', e.target.innerText);
+                }
             });
             
             highlight.addEventListener('mouseleave', (e) => {
@@ -102,6 +114,10 @@
                     currentHoveredElement = null;
                 }
                 e.target.style.backgroundColor = '#ffeb3b';
+                
+                if (debugMode) {
+                    console.log('[Immersive Memorize] 鼠标离开');
+                }
             });
         });
     }
@@ -111,12 +127,47 @@
     }
     
     function setupEventListeners() {
-        document.addEventListener('keydown', async (e) => {
-            if (e.key.toLowerCase() === 's' && currentHoveredElement) {
+        // 多重按键监听策略
+        const keyHandler = async (e) => {
+            if (debugMode && e.key.toLowerCase() === captureHotkey.toLowerCase()) {
+                console.log('[Immersive Memorize] 按键检测:', {
+                    key: e.key,
+                    target: e.target,
+                    hoveredElement: currentHoveredElement,
+                    prevented: e.defaultPrevented
+                });
+            }
+            
+            if (e.key.toLowerCase() === captureHotkey.toLowerCase() && currentHoveredElement) {
                 e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
+                
+                if (debugMode) {
+                    console.log('[Immersive Memorize] 开始捕获数据...');
+                }
+                
                 await captureData();
             }
-        });
+        };
+        
+        // 在不同阶段添加事件监听器
+        document.addEventListener('keydown', keyHandler, true); // 捕获阶段
+        document.addEventListener('keydown', keyHandler, false); // 冒泡阶段
+        window.addEventListener('keydown', keyHandler, true);
+        
+        // 额外的安全措施：直接在 body 上监听
+        if (document.body) {
+            document.body.addEventListener('keydown', keyHandler, true);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                document.body.addEventListener('keydown', keyHandler, true);
+            });
+        }
+        
+        if (debugMode) {
+            console.log('[Immersive Memorize] 按键监听器已设置');
+        }
     }
     
     async function captureData() {
@@ -152,11 +203,14 @@
             
             await chrome.storage.local.set({ savedCards: savedCards });
             
-            console.log(`[Immersive Memorize] 已保存卡片: ${word}`);
+            if (debugMode) {
+                console.log(`[Immersive Memorize] 已保存卡片:`, cardData);
+            }
             showNotification(`已保存: ${word}`);
             
         } catch (error) {
             console.error('[Immersive Memorize] 捕获数据失败:', error);
+            showNotification('保存失败: ' + error.message, 'error');
         }
     }
     
@@ -178,20 +232,26 @@
         }
     }
     
-    function showNotification(message) {
+    function showNotification(message, type = 'success') {
         const notification = document.createElement('div');
+        const bgColor = type === 'error' ? '#f44336' : '#4caf50';
+        
         notification.style.cssText = `
             position: fixed;
             top: 20px;
             right: 20px;
-            background: #4caf50;
+            background: ${bgColor};
             color: white;
             padding: 10px 15px;
             border-radius: 5px;
-            z-index: 9999;
+            z-index: 999999;
             font-family: Arial, sans-serif;
             font-size: 14px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            font-weight: bold;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            border: 2px solid rgba(255,255,255,0.3);
+            max-width: 300px;
+            word-wrap: break-word;
         `;
         notification.textContent = message;
         
@@ -201,7 +261,7 @@
             if (notification.parentNode) {
                 notification.parentNode.removeChild(notification);
             }
-        }, 2000);
+        }, type === 'error' ? 4000 : 2000);
     }
     
     if (document.readyState === 'loading') {
