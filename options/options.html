@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immersive Memorize - 设置</title>
+    <link rel="stylesheet" href="options.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Immersive Memorize 设置</h1>
+            <p>在此处配置您的 JLPT 词汇表，每行一个单词</p>
+        </header>
+        
+        <main>
+            <div class="wordlist-section">
+                <label for="wordlist-textarea">JLPT 词汇表:</label>
+                <textarea 
+                    id="wordlist-textarea" 
+                    placeholder="请输入词汇，每行一个单词&#10;例如:&#10;解析&#10;理解&#10;勉強&#10;学習"
+                    rows="20"
+                ></textarea>
+                <div class="textarea-info">
+                    <span id="word-count">0 个词汇</span>
+                </div>
+            </div>
+            
+            <div class="actions">
+                <button id="save-button" class="primary">保存设置</button>
+                <button id="clear-button" class="secondary">清空列表</button>
+            </div>
+            
+            <div class="usage-info">
+                <h3>使用说明:</h3>
+                <ul>
+                    <li>在 Netflix 观看日语内容时，高亮显示的词汇将自动标记</li>
+                    <li>将鼠标悬停在高亮词汇上，按 <kbd>S</kbd> 键保存卡片</li>
+                    <li>在扩展弹窗中查看和导出已保存的卡片</li>
+                </ul>
+            </div>
+        </main>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <script src="options.js"></script>
+</body>
+</html>
