@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Immersive Memorize</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Immersive Memorize</h1>
+            <div class="stats">
+                <span id="total-cards">0</span> 张卡片
+            </div>
+        </header>
+        
+        <div class="actions">
+            <button id="export-button" class="primary">
+                导出 Anki CSV
+            </button>
+            <button id="clear-all-button" class="secondary">
+                清空所有
+            </button>
+            <button id="open-options" class="tertiary">
+                设置词汇表
+            </button>
+        </div>
+        
+        <div class="cards-container">
+            <div id="cards-list">
+                <div class="no-cards">
+                    <p>还没有保存任何卡片</p>
+                    <p class="hint">在 Netflix 上观看日语内容时，将鼠标悬停在高亮词汇上并按 <kbd>S</kbd> 键保存</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pagination">
+            <button id="prev-page" class="page-btn" disabled>上一页</button>
+            <span id="page-info">第 1 页，共 1 页</span>
+            <button id="next-page" class="page-btn" disabled>下一页</button>
+        </div>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>
