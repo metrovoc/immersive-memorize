@@ -1,0 +1,114 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Validate manifest.json
+      run: |
+        echo "Validating manifest.json..."
+        node -e "
+          const manifest = require('./manifest.json');
+          const requiredFields = ['name', 'version', 'manifest_version', 'description'];
+          const missing = requiredFields.filter(field => !manifest[field]);
+          if (missing.length > 0) {
+            console.error('Missing required fields:', missing);
+            process.exit(1);
+          }
+          console.log('✓ Manifest validation passed');
+          console.log('Extension:', manifest.name, 'v' + manifest.version);
+        "
+        
+    - name: Check file structure
+      run: |
+        echo "Checking extension file structure..."
+        
+        required_files=(
+          "manifest.json"
+          "content_script.js"
+          "popup/popup.html"
+          "popup/popup.css" 
+          "popup/popup.js"
+          "options/options.html"
+          "options/options.css"
+          "options/options.js"
+          "icons/icon16.png"
+          "icons/icon48.png"
+          "icons/icon128.png"
+        )
+        
+        missing_files=()
+        for file in "${required_files[@]}"; do
+          if [ ! -f "$file" ]; then
+            missing_files+=("$file")
+          else
+            echo "✓ $file"
+          fi
+        done
+        
+        if [ ${#missing_files[@]} -ne 0 ]; then
+          echo "❌ Missing required files:"
+          for file in "${missing_files[@]}"; do
+            echo "  - $file"
+          done
+          exit 1
+        fi
+        
+        echo "✅ All required files present"
+        
+    - name: Lint JavaScript files
+      run: |
+        echo "Basic JavaScript syntax check..."
+        
+        js_files=("content_script.js" "popup/popup.js" "options/options.js")
+        
+        for file in "${js_files[@]}"; do
+          echo "Checking $file..."
+          node -c "$file" && echo "✓ $file syntax OK" || (echo "❌ $file has syntax errors" && exit 1)
+        done
+        
+        echo "✅ JavaScript syntax check passed"
+        
+    - name: Create test build
+      run: |
+        echo "Creating test build..."
+        
+        # Create build directory
+        mkdir -p dist
+        
+        # Copy all extension files
+        cp manifest.json dist/
+        cp content_script.js dist/
+        cp -r icons dist/
+        cp -r popup dist/
+        cp -r options dist/
+        
+        # Create zip package for testing
+        cd dist
+        zip -r "../immersive-memorize-build-${{ github.sha }}.zip" .
+        cd ..
+        
+        echo "✅ Test build created successfully"
+        ls -la immersive-memorize-build-*.zip
+        
+    - name: Upload build artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: extension-build-${{ github.sha }}
+        path: immersive-memorize-build-${{ github.sha }}.zip
+        retention-days: 7
