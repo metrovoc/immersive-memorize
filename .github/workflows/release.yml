@@ -6,6 +6,12 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Add explicit permissions for the workflow
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -89,7 +95,7 @@ jobs:
         EOF
         
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         tag_name: ${{ steps.get_version.outputs.version }}
         name: Immersive Memorize ${{ steps.get_version.outputs.version }}
