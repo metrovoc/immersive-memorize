@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <circle cx="64" cy="64" r="60" fill="#4CAF50" stroke="#388E3C" stroke-width="3"/>
-  <path d="M32 64 Q48 32 64 64 Q80 32 96 64 Q80 96 64 64 Q48 96 32 64" fill="#FFFFFF" opacity="0.8"/>
-  <circle cx="48" cy="50" r="4" fill="#FFFFFF"/>
-  <circle cx="80" cy="50" r="4" fill="#FFFFFF"/>
-  <text x="64" y="100" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" font-weight="bold" fill="#FFFFFF">記</text>
-</svg>
