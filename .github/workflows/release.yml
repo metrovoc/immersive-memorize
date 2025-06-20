@@ -1,0 +1,112 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        
+    - name: Get version from manifest
+      id: get_version
+      run: |
+        VERSION=$(node -p "require('./manifest.json').version")
+        echo "version=v${VERSION}" >> $GITHUB_OUTPUT
+        echo "Extension version: ${VERSION}"
+        
+    - name: Create extension package
+      run: |
+        # Create build directory
+        mkdir -p build
+        
+        # Copy extension files
+        cp manifest.json build/
+        cp content_script.js build/
+        cp -r icons build/
+        cp -r popup build/
+        cp -r options build/
+        
+        # Create zip package
+        cd build
+        zip -r "../immersive-memorize-${{ steps.get_version.outputs.version }}.zip" .
+        cd ..
+        
+        # Create tar.gz package
+        tar -czf "immersive-memorize-${{ steps.get_version.outputs.version }}.tar.gz" \
+          manifest.json content_script.js icons/ popup/ options/
+        
+    - name: Verify package contents
+      run: |
+        echo "=== ZIP Package Contents ==="
+        unzip -l "immersive-memorize-${{ steps.get_version.outputs.version }}.zip"
+        echo ""
+        echo "=== TAR.GZ Package Contents ==="
+        tar -tzf "immersive-memorize-${{ steps.get_version.outputs.version }}.tar.gz"
+        
+    - name: Generate release notes
+      id: release_notes
+      run: |
+        cat > release_notes.md << 'EOF'
+        ## 🎯 Immersive Memorize Chrome Extension
+        
+        ### Features
+        - **顺序学习模式**: 每次只显示一个生词，专注高效学习
+        - **智能词汇识别**: 自动识别 JLPT 词汇并高亮显示
+        - **即按即学**: 无需鼠标悬停，直接按快捷键学习
+        - **视频截图**: 自动捕获当前画面作为学习卡片
+        - **Anki 导出**: 一键导出为 CSV 格式，直接导入 Anki
+        - **自定义快捷键**: 支持自定义学习快捷键
+        - **已学词汇记忆**: 已学词汇不再显示，避免重复学习
+        
+        ### Installation
+        1. Download the `.zip` file below
+        2. Extract it to a folder
+        3. Open Chrome Extensions (`chrome://extensions/`)
+        4. Enable "Developer mode"
+        5. Click "Load unpacked" and select the extracted folder
+        
+        ### Usage
+        1. Configure your JLPT vocabulary list in extension options
+        2. Watch Japanese content on Netflix
+        3. Press your hotkey (default: S) to learn highlighted words
+        4. Export learned cards to Anki from the extension popup
+        
+        ### Files
+        - `immersive-memorize-${{ steps.get_version.outputs.version }}.zip` - Chrome extension package (recommended)
+        - `immersive-memorize-${{ steps.get_version.outputs.version }}.tar.gz` - Source archive
+        EOF
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.get_version.outputs.version }}
+        name: Immersive Memorize ${{ steps.get_version.outputs.version }}
+        body_path: release_notes.md
+        draft: false
+        prerelease: false
+        files: |
+          immersive-memorize-${{ steps.get_version.outputs.version }}.zip
+          immersive-memorize-${{ steps.get_version.outputs.version }}.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: extension-packages
+        path: |
+          immersive-memorize-${{ steps.get_version.outputs.version }}.zip
+          immersive-memorize-${{ steps.get_version.outputs.version }}.tar.gz
+        retention-days: 30

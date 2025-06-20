@@ -1,1 +1,60 @@
+# Build outputs
+build/
+dist/
+*.zip
 *.tar.gz
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Temporary folders
+tmp/
+temp/
+
+# Node modules (if using any build tools in future)
+node_modules/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Package manager lockfiles
+package-lock.json
+yarn.lock
+
+# Chrome extension development
+*.crx
+*.pem
+
+# Backup files
+*.bak
+*.backup
+EOF < /dev/null
