@@ -11,8 +11,6 @@
 
 通过智能词汇识别和顺序学习模式，让您在观看日语内容时轻松学习 JLPT 词汇
 
-[下载扩展](#-安装) • [使用教程](#-使用教程) • [功能特性](#-功能特性) • [开发计划](#-开发计划)
-
 </div>
 
 ---
@@ -24,37 +22,39 @@
 - [📖 使用教程](#-使用教程)
 - [🏗️ 项目结构](#️-项目结构)
 - [🔧 开发](#-开发)
-- [📅 开发计划](#-开发计划)
-- [❓ 常见问题](#-常见问题)
-- [🤝 贡献](#-贡献)
-- [📄 许可证](#-许可证)
+- [📅 开发计划](#-TODOs)
 
 ---
 
 ## ✨ 功能特性
 
 ### 🎯 **顺序学习模式**
+
 - **专注学习**: 每次只高亮显示一个生词，避免视觉干扰
 - **有序进行**: 学完当前词汇自动显示下一个
 - **智能记忆**: 已学词汇永久记录，不再重复显示
 
 ### ⚡ **即按即学**
+
 - **无需悬停**: 摒弃传统鼠标悬停模式
 - **一键学习**: 直接按快捷键捕获当前高亮词汇
 - **自定义快捷键**: 支持设置任意字母键作为学习快捷键
 
 ### 🎨 **视觉增强**
+
 - **脉冲高亮**: 橙色高亮 + 脉冲动画突出目标词汇
 - **实时反馈**: 成功/警告/错误通知系统
 - **清晰界面**: 简洁现代的选项和弹窗界面
 
 ### 📚 **智能卡片系统**
+
 - **自动截图**: 捕获当前视频帧作为学习卡片
 - **完整信息**: 记录词汇、句子、时间戳、来源等
 - **Anki 导出**: 一键导出 CSV 格式，直接导入 Anki
 - **批量管理**: 查看、删除、批量操作学习记录
 
 ### 🛠️ **个性化配置**
+
 - **词汇表管理**: 自定义 JLPT 词汇列表
 - **调试模式**: 详细的控制台日志输出
 - **数据同步**: 基于 Chrome 存储的本地数据管理
@@ -94,10 +94,12 @@ cd immersive-memorize
 ### 第一步：配置词汇表
 
 1. **打开选项页面**
+
    - 右键点击扩展图标 → 选择"选项"
    - 或在扩展管理页面点击"扩展程序选项"
 
 2. **添加 JLPT 词汇**
+
    ```
    解析
    理解
@@ -109,6 +111,7 @@ cd immersive-memorize
    ```
 
 3. **自定义快捷键**（可选）
+
    - 点击快捷键输入框
    - 按下任意字母键设置（默认: S）
 
@@ -117,27 +120,31 @@ cd immersive-memorize
 ### 第二步：开始学习
 
 1. **访问 Netflix**
+
    - 打开 `netflix.com`
    - 播放任何日语内容
    - 确保开启日语字幕
 
 2. **学习流程**
+
    ```
    看到橙色高亮词汇 → 按快捷键 → 自动保存卡片 → 显示下一个生词
    ```
 
 3. **学习提示**
    - ✓ 成功学习：显示绿色"✓ 词汇 已学习"
-   - ⚠ 重复词汇：显示橙色"⚠ 词汇 已存在" 
+   - ⚠ 重复词汇：显示橙色"⚠ 词汇 已存在"
    - ℹ 无生词：显示蓝色"ℹ 当前无生词可学习"
 
 ### 第三步：导出到 Anki
 
 1. **查看学习记录**
+
    - 点击扩展图标打开弹窗
    - 查看已保存的卡片列表
 
 2. **导出 CSV**
+
    - 点击"导出 Anki CSV"按钮
    - 下载 CSV 文件
 
@@ -175,13 +182,13 @@ immersive-memorize/
 
 ### 核心文件说明
 
-| 文件 | 功能 | 描述 |
-|------|------|------|
-| `manifest.json` | 扩展配置 | Manifest V3 配置文件 |
+| 文件                | 功能     | 描述                         |
+| ------------------- | -------- | ---------------------------- |
+| `manifest.json`     | 扩展配置 | Manifest V3 配置文件         |
 | `content_script.js` | 核心逻辑 | 字幕监控、词汇识别、学习捕获 |
-| `popup/` | 弹窗界面 | 学习记录展示、数据导出 |
-| `options/` | 选项页面 | 词汇表配置、快捷键设置 |
-| `icons/` | 图标资源 | 16px、48px、128px 图标 |
+| `popup/`            | 弹窗界面 | 学习记录展示、数据导出       |
+| `options/`          | 选项页面 | 词汇表配置、快捷键设置       |
+| `icons/`            | 图标资源 | 16px、48px、128px 图标       |
 
 ---
 
@@ -205,30 +212,9 @@ cd immersive-memorize
 GitHub Actions 会自动进行以下检查：
 
 - ✅ `manifest.json` 验证
-- ✅ 文件结构检查  
+- ✅ 文件结构检查
 - ✅ JavaScript 语法检查
 - ✅ 自动构建打包
-
-### 发布流程
-
-1. **更新版本号**
-   ```bash
-   # 更新 manifest.json 中的 version
-   vim manifest.json
-   ```
-
-2. **创建标签**
-   ```bash
-   git add .
-   git commit -m "Release v0.2.0"
-   git tag v0.2.0
-   git push origin main --tags
-   ```
-
-3. **自动发布**
-   - GitHub Actions 自动检测标签
-   - 构建扩展包
-   - 创建 Release 发布
 
 ---
 
@@ -242,67 +228,6 @@ GitHub Actions 会自动进行以下检查：
   - [ ] **即时翻译**: 鼠标悬停显示词汇释义
   - [ ] **多词典支持**: 集成 JMdict、EDICT 等词典
   - [ ] **发音播放**: TTS 语音播放功能
-
-
-## 🤝 贡献
-
-欢迎贡献代码、报告问题或提出建议！
-
-### 贡献方式
-
-1. **提交 Issue**
-   - Bug 报告
-   - 功能建议
-   - 使用问题
-
-2. **提交 Pull Request**
-   - Fork 项目
-   - 创建功能分支
-   - 提交代码并创建 PR
-
-3. **文档改进**
-   - 完善 README
-   - 添加使用示例
-   - 翻译文档
-
-### 开发规范
-
-- 遵循现有代码风格
-- 添加必要的注释
-- 确保功能测试通过
-- 更新相关文档
-
----
-
-## 📄 许可证
-
-本项目基于 [MIT License](LICENSE) 开源。
-
-```
-MIT License
-
-Copyright (c) 2024 Immersive Memorize
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-```
-
----
 
 <div align="center">
 
