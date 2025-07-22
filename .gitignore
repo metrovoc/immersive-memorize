@@ -47,8 +47,15 @@ node_modules/
 .env.production.local
 
 # Package manager lockfiles
-package-lock.json
 yarn.lock
+pnpm-lock.yaml
+.pnpm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+
+# ESLint cache
+.eslintcache
 
 # Chrome extension development
 *.crx
