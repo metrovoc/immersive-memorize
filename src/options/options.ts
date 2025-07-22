@@ -545,7 +545,7 @@ class OptionsManager {
                           ${item.card ? `
                             <div class="mt-2 text-xs text-muted-foreground">
                               <span>来源: ${this.escapeHtml(item.card.sourceTitle)}</span>
-                              ${item.card.sentence ? ` • 句子: ${this.escapeHtml(item.card.sentence)}` : ''}
+                              ${item.card.sentence ? ` • 句子: ${item.card.sentence}` : ''}
                             </div>
                           ` : ''}
                         </div>
