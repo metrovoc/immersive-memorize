@@ -57,3 +57,26 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Custom Furigana Styles */
+.im-ruby {
+  display: inline-block; /* Use inline-block for reliable alignment */
+  position: relative;
+  vertical-align: baseline; /* Aligns the container's baseline with surrounding text */
+}
+
+.im-rt {
+  display: block;
+  position: absolute;
+  bottom: 100%; /* Position furigana directly above the base text */
+  left: 50%;
+  transform: translateX(-50%); /* Center the furigana */
+  font-size: 0.65em;
+  line-height: 0.8;
+  color: var(--muted-foreground);
+  white-space: nowrap; /* Prevent furigana from wrapping */
+}
+
+.im-rb {
+  /* No special styling needed, its baseline determines the container's baseline */
+}
