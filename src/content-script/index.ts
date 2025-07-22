@@ -297,7 +297,36 @@ class ImmersiveMemorize {
       const sentenceElement = this.currentTargetElement.closest(
         '.player-timedtext-text-container, .ltr-1472gpj, [data-uia="player-caption-text"]'
       ) as HTMLElement | null
-      const sentence = sentenceElement ? sentenceElement.innerHTML : ''
+
+      let sentence = ''
+      if (sentenceElement) {
+        const clonedElement = sentenceElement.cloneNode(true) as HTMLElement
+
+        // 1. 移除所有 style 属性，除了我们自己的高亮元素
+        clonedElement.querySelectorAll('[style]').forEach(el => {
+          if (!el.classList.contains('im-highlight')) {
+            el.removeAttribute('style')
+          }
+        })
+
+        // 2. 移除所有 class，除了我们自己的
+        clonedElement.querySelectorAll('[class]').forEach(el => {
+          const classesToKeep = []
+          for (const cls of el.classList) {
+            if (cls.startsWith('im-')) {
+              classesToKeep.push(cls)
+            }
+          }
+          el.className = classesToKeep.join(' ')
+        })
+
+        // 3. 为 furigana 添加自定义 class 以便统一样式
+        clonedElement.querySelectorAll('ruby').forEach(rubyEl => rubyEl.classList.add('im-ruby'))
+        clonedElement.querySelectorAll('rt').forEach(rtEl => rtEl.classList.add('im-rt'))
+        clonedElement.querySelectorAll('rb').forEach(rbEl => rbEl.classList.add('im-rb'))
+
+        sentence = clonedElement.innerHTML
+      }
 
       const videoElement = document.querySelector<HTMLVideoElement>('video')
       const timestamp = videoElement ? Math.floor(videoElement.currentTime) : 0
