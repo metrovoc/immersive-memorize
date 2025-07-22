@@ -8,13 +8,12 @@ class PopupManager {
   private nextPageBtn: HTMLButtonElement
   private pageInfo: HTMLElement
   private notification: HTMLElement
-  private settingsDropdown: HTMLElement
-  private settingsToggle: HTMLButtonElement
+  private settingsButton: HTMLButtonElement
+  private learnedWordsButton: HTMLButtonElement
 
   private savedCards: FlashCard[] = []
   private currentPage = 1
   private readonly cardsPerPage = 10
-  private isSettingsOpen = false
 
   constructor() {
     this.totalCardsSpan = document.getElementById('total-cards')!
@@ -23,8 +22,8 @@ class PopupManager {
     this.nextPageBtn = document.getElementById('next-page') as HTMLButtonElement
     this.pageInfo = document.getElementById('page-info')!
     this.notification = document.getElementById('notification')!
-    this.settingsDropdown = document.getElementById('settings-dropdown')!
-    this.settingsToggle = document.getElementById('settings-toggle') as HTMLButtonElement
+    this.settingsButton = document.getElementById('settings-button') as HTMLButtonElement
+    this.learnedWordsButton = document.getElementById('learned-words-button') as HTMLButtonElement
   }
 
   async init(): Promise<void> {
@@ -35,46 +34,8 @@ class PopupManager {
   private setupEventListeners(): void {
     this.prevPageBtn.addEventListener('click', () => this.changePage(-1))
     this.nextPageBtn.addEventListener('click', () => this.changePage(1))
-    this.settingsToggle.addEventListener('click', () => this.toggleSettingsDropdown())
-    
-    // 点击外部关闭设置菜单
-    document.addEventListener('click', (e) => {
-      if (!this.settingsToggle.contains(e.target as Node) && !this.settingsDropdown.contains(e.target as Node)) {
-        this.closeSettingsDropdown()
-      }
-    })
-
-    // 设置菜单项事件
-    document.addEventListener('click', async (e) => {
-      const target = e.target as HTMLElement
-      
-      if (target.id === 'export-button') {
-        await this.exportToAnki()
-        this.closeSettingsDropdown()
-      } else if (target.id === 'clear-all-button') {
-        await this.clearAllCards()
-        this.closeSettingsDropdown()
-      } else if (target.id === 'open-options') {
-        this.openOptions()
-        this.closeSettingsDropdown()
-      }
-    })
-  }
-
-  private toggleSettingsDropdown(): void {
-    this.isSettingsOpen = !this.isSettingsOpen
-    if (this.isSettingsOpen) {
-      this.settingsDropdown.classList.remove('hidden')
-      this.settingsDropdown.classList.add('animate-in', 'fade-in-0', 'zoom-in-95')
-    } else {
-      this.closeSettingsDropdown()
-    }
-  }
-
-  private closeSettingsDropdown(): void {
-    this.isSettingsOpen = false
-    this.settingsDropdown.classList.add('hidden')
-    this.settingsDropdown.classList.remove('animate-in', 'fade-in-0', 'zoom-in-95')
+    this.settingsButton.addEventListener('click', () => this.openOptions())
+    this.learnedWordsButton.addEventListener('click', () => this.openLearnedWords())
   }
 
   private async loadCards(): Promise<void> {
@@ -100,7 +61,9 @@ class PopupManager {
       this.cardsList.innerHTML = `
         <div class="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
           <div class="w-16 h-16 mb-4 rounded-full bg-muted flex items-center justify-center">
-            <span class="text-2xl">📚</span>
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
           </div>
           <p class="text-lg font-medium mb-2">还没有保存任何卡片</p>
           <p class="text-sm">在 Netflix 上观看日语内容时</p>
@@ -191,77 +154,22 @@ class PopupManager {
     }
   }
 
-  private async exportToAnki(): Promise<void> {
-    if (this.savedCards.length === 0) {
-      this.showNotification('没有卡片可导出', 'error')
-      return
-    }
-
-    try {
-      const csvHeader = 'Word;Sentence;Screenshot;Timestamp;Source'
-      const csvRows = this.savedCards.map(card => {
-        const word = this.escapeCsvField(card.word)
-        const sentence = this.escapeCsvField(card.sentence)
-        const screenshot = card.screenshot ? `<img src="${card.screenshot}">` : ''
-        const timestamp = this.formatTimestamp(card.timestamp)
-        const source = this.escapeCsvField(card.sourceTitle)
-
-        return `${word};${sentence};${screenshot};${timestamp};${source}`
-      })
-
-      const csvContent = [csvHeader, ...csvRows].join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `immersive-memorize-${new Date().toISOString().slice(0, 10)}.csv`
-      link.click()
-
-      URL.revokeObjectURL(url)
-      this.showNotification(`已导出 ${this.savedCards.length} 张卡片`, 'success')
-    } catch (error) {
-      console.error('导出失败:', error)
-      this.showNotification('导出失败', 'error')
-    }
-  }
-
-  private async clearAllCards(): Promise<void> {
-    if (confirm('确定要删除所有卡片吗？此操作不可撤销。')) {
-      try {
-        await chrome.storage.local.set({ savedCards: [] })
-        this.savedCards = []
-        this.currentPage = 1
-
-        this.updateStats()
-        this.renderCards()
-        this.updatePagination()
-
-        this.showNotification('所有卡片已清空', 'success')
-      } catch (error) {
-        console.error('清空失败:', error)
-        this.showNotification('清空失败', 'error')
-      }
-    }
-  }
 
   private openOptions(): void {
     chrome.runtime.openOptionsPage()
+  }
+
+  private openLearnedWords(): void {
+    // 在新标签页中打开已学词汇页面
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('options/options.html') + '?view=learned-words'
+    })
   }
 
   private escapeHtml(text: string): string {
     const div = document.createElement('div')
     div.textContent = text
     return div.innerHTML
-  }
-
-  private escapeCsvField(field: string): string {
-    if (typeof field !== 'string') return ''
-
-    if (field.includes(';') || field.includes('"') || field.includes('\n')) {
-      return `"${field.replace(/"/g, '""')}"`
-    }
-    return field
   }
 
   private formatTimestamp(seconds: number): string {
@@ -308,43 +216,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   container.innerHTML = `
     <div class="space-y-4">
       <header class="flex items-center justify-between pb-4 border-b">
+        <button id="learned-words-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="已学词汇">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+        
         <div class="text-center flex-1">
           <h1 class="text-xl font-bold mb-1">Immersive Memorize</h1>
           <div class="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            <span id="total-cards">0</span> 张卡片
+            <span id="total-cards">0</span> 张记忆卡片
           </div>
         </div>
         
-        <div class="relative">
-          <button id="settings-toggle" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="设置">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </button>
-          
-          <div id="settings-dropdown" class="hidden absolute right-0 top-12 w-48 bg-popover border rounded-md shadow-md z-10 py-1">
-            <button id="export-button" class="flex items-center w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground">
-              <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              导出 Anki CSV
-            </button>
-            <button id="clear-all-button" class="flex items-center w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground text-destructive">
-              <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              清空所有卡片
-            </button>
-            <div class="border-t my-1"></div>
-            <button id="open-options" class="flex items-center w-full px-3 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground">
-              <svg class="h-4 w-4 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-              词汇库设置
-            </button>
-          </div>
-        </div>
+        <button id="settings-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="设置">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+          </svg>
+        </button>
       </header>
       
       <div class="max-h-80 overflow-y-auto">
