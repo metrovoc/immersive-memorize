@@ -19,10 +19,14 @@ class ImmersiveMemorize {
     try {
       // 初始化词汇库管理器
       await this.vocabLibraryManager.init()
-      
+
       // 加载设置
-      const result = await chrome.storage.local.get(['captureHotkey', 'debugMode', 'savedCards']) as Partial<ExtensionSettings>
-      
+      const result = (await chrome.storage.local.get([
+        'captureHotkey',
+        'debugMode',
+        'savedCards',
+      ])) as Partial<ExtensionSettings>
+
       this.captureHotkey = result.captureHotkey || 's'
       this.debugMode = result.debugMode !== false
 
@@ -50,7 +54,7 @@ class ImmersiveMemorize {
 
       this.startSubtitleObserver()
       this.setupEventListeners()
-      
+
       // 监听存储变化，实时更新词汇表
       this.setupStorageListener()
     } catch (error) {
@@ -59,27 +63,29 @@ class ImmersiveMemorize {
   }
 
   private setupStorageListener(): void {
-    chrome.storage.onChanged.addListener(async (changes) => {
+    chrome.storage.onChanged.addListener(async changes => {
       if (changes.vocabLibrarySettings) {
         // 重新加载词汇库设置
         await this.vocabLibraryManager.init()
         this.activeWordlist = this.vocabLibraryManager.getActiveWordlist()
-        
+
         if (this.debugMode) {
-          console.log(`[Immersive Memorize] 词汇表已更新，当前 ${this.activeWordlist.length} 个词汇`)
+          console.log(
+            `[Immersive Memorize] 词汇表已更新，当前 ${this.activeWordlist.length} 个词汇`
+          )
         }
-        
+
         // 重新扫描当前字幕
         this.refreshCurrentSubtitles()
       }
-      
+
       if (changes.captureHotkey) {
         this.captureHotkey = changes.captureHotkey.newValue || 's'
         if (this.debugMode) {
           console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`)
         }
       }
-      
+
       if (changes.debugMode) {
         this.debugMode = changes.debugMode.newValue !== false
       }
@@ -89,9 +95,7 @@ class ImmersiveMemorize {
   private refreshCurrentSubtitles(): void {
     // 清除所有处理标记并重新扫描
     const subtitleContainers = document.querySelectorAll<HTMLElement>(
-      '.player-timedtext-text-container, ' +
-      '.ltr-1472gpj, ' +
-      '[data-uia="player-caption-text"]'
+      '.player-timedtext-text-container, ' + '.ltr-1472gpj, ' + '[data-uia="player-caption-text"]'
     )
 
     subtitleContainers.forEach(container => {
@@ -103,13 +107,13 @@ class ImmersiveMemorize {
   private startSubtitleObserver(): void {
     const targetNode = document.body
 
-    this.observer = new MutationObserver((mutations) => {
-      mutations.forEach((mutation) => {
+    this.observer = new MutationObserver(mutations => {
+      mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
           const subtitleContainers = document.querySelectorAll<HTMLElement>(
             '.player-timedtext-text-container, ' +
-            '.ltr-1472gpj, ' +
-            '[data-uia="player-caption-text"]'
+              '.ltr-1472gpj, ' +
+              '[data-uia="player-caption-text"]'
           )
 
           subtitleContainers.forEach(container => {
@@ -125,7 +129,7 @@ class ImmersiveMemorize {
     this.observer.observe(targetNode, {
       childList: true,
       subtree: true,
-      characterData: true
+      characterData: true,
     })
   }
 
@@ -135,10 +139,7 @@ class ImmersiveMemorize {
     // 清除之前的高亮
     this.clearAllHighlights()
 
-    const walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT
-    )
+    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
 
     const textNodes: Text[] = []
     let node: Node | null
@@ -312,10 +313,10 @@ class ImmersiveMemorize {
         timestamp: timestamp,
         screenshot: screenshot,
         sourceTitle: sourceTitle,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
       }
 
-      const result = await chrome.storage.local.get(['savedCards']) as Partial<ExtensionSettings>
+      const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
       const savedCards = result.savedCards || []
       savedCards.push(cardData)
 
@@ -336,8 +337,8 @@ class ImmersiveMemorize {
       setTimeout(() => {
         const subtitleContainers = document.querySelectorAll<HTMLElement>(
           '.player-timedtext-text-container, ' +
-          '.ltr-1472gpj, ' +
-          '[data-uia="player-caption-text"]'
+            '.ltr-1472gpj, ' +
+            '[data-uia="player-caption-text"]'
         )
 
         subtitleContainers.forEach(container => {
@@ -350,8 +351,7 @@ class ImmersiveMemorize {
         console.log(`[Immersive Memorize] 已保存卡片:`, cardData)
       }
 
-      this.showNotification(`✓ ${word} 已学习`)
-
+      this.showNotification(`${word} 已学习`)
     } catch (error) {
       console.error('[Immersive Memorize] 捕获数据失败:', error)
       this.showNotification('保存失败: ' + (error as Error).message, 'error')
@@ -396,7 +396,10 @@ class ImmersiveMemorize {
     }
   }
 
-  private showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success'): void {
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'success'
+  ): void {
     const notification = document.createElement('div')
     let bgColor: string, icon: string
 
