@@ -1,7 +1,9 @@
 import type { FlashCard, ExtensionSettings } from '@/types'
+import { VocabLibraryManager } from '@/lib/vocab-library'
 
 class ImmersiveMemorize {
-  private jlptWordlist: string[] = []
+  private vocabLibraryManager: VocabLibraryManager
+  private activeWordlist: string[] = []
   private learnedWords: Set<string> = new Set()
   private currentTargetWord: string | null = null
   private currentTargetElement: HTMLElement | null = null
@@ -9,20 +11,38 @@ class ImmersiveMemorize {
   private captureHotkey: string = 's'
   private debugMode: boolean = true
 
+  constructor() {
+    this.vocabLibraryManager = new VocabLibraryManager()
+  }
+
   async init(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['jlptWordlist', 'captureHotkey', 'debugMode', 'savedCards']) as Partial<ExtensionSettings>
+      // 初始化词汇库管理器
+      await this.vocabLibraryManager.init()
       
-      this.jlptWordlist = result.jlptWordlist || []
+      // 加载设置
+      const result = await chrome.storage.local.get(['captureHotkey', 'debugMode', 'savedCards']) as Partial<ExtensionSettings>
+      
       this.captureHotkey = result.captureHotkey || 's'
       this.debugMode = result.debugMode !== false
+
+      // 获取激活的词汇表
+      this.activeWordlist = this.vocabLibraryManager.getActiveWordlist()
 
       // 加载已学词汇
       const savedCards = result.savedCards || []
       this.learnedWords = new Set(savedCards.map(card => card.word))
 
       if (this.debugMode) {
-        console.log(`[Immersive Memorize] 已加载 ${this.jlptWordlist.length} 个词汇`)
+        const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
+        const settings = this.vocabLibraryManager.getSettings()
+        const enabledLevels = Object.entries(settings.levelSettings)
+          .filter(([_, progress]) => progress.enabled)
+          .map(([level]) => level)
+
+        console.log(`[Immersive Memorize] 当前词库: ${selectedLibrary?.name || '未选择'}`)
+        console.log(`[Immersive Memorize] 激活等级: ${enabledLevels.join(', ')}`)
+        console.log(`[Immersive Memorize] 已加载 ${this.activeWordlist.length} 个词汇`)
         console.log(`[Immersive Memorize] 已学 ${this.learnedWords.size} 个词汇`)
         console.log(`[Immersive Memorize] 捕获快捷键: ${this.captureHotkey.toUpperCase()}`)
         console.log(`[Immersive Memorize] 顺序学习模式：每次仅显示一个生词`)
@@ -30,9 +50,54 @@ class ImmersiveMemorize {
 
       this.startSubtitleObserver()
       this.setupEventListeners()
+      
+      // 监听存储变化，实时更新词汇表
+      this.setupStorageListener()
     } catch (error) {
       console.error('[Immersive Memorize] 初始化失败:', error)
     }
+  }
+
+  private setupStorageListener(): void {
+    chrome.storage.onChanged.addListener(async (changes) => {
+      if (changes.vocabLibrarySettings) {
+        // 重新加载词汇库设置
+        await this.vocabLibraryManager.init()
+        this.activeWordlist = this.vocabLibraryManager.getActiveWordlist()
+        
+        if (this.debugMode) {
+          console.log(`[Immersive Memorize] 词汇表已更新，当前 ${this.activeWordlist.length} 个词汇`)
+        }
+        
+        // 重新扫描当前字幕
+        this.refreshCurrentSubtitles()
+      }
+      
+      if (changes.captureHotkey) {
+        this.captureHotkey = changes.captureHotkey.newValue || 's'
+        if (this.debugMode) {
+          console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`)
+        }
+      }
+      
+      if (changes.debugMode) {
+        this.debugMode = changes.debugMode.newValue !== false
+      }
+    })
+  }
+
+  private refreshCurrentSubtitles(): void {
+    // 清除所有处理标记并重新扫描
+    const subtitleContainers = document.querySelectorAll<HTMLElement>(
+      '.player-timedtext-text-container, ' +
+      '.ltr-1472gpj, ' +
+      '[data-uia="player-caption-text"]'
+    )
+
+    subtitleContainers.forEach(container => {
+      container.dataset.imProcessed = ''
+      this.highlightFirstUnlearnedWord(container)
+    })
   }
 
   private startSubtitleObserver(): void {
@@ -65,7 +130,7 @@ class ImmersiveMemorize {
   }
 
   private highlightFirstUnlearnedWord(container: HTMLElement): void {
-    if (!container || this.jlptWordlist.length === 0) return
+    if (!container || this.activeWordlist.length === 0) return
 
     // 清除之前的高亮
     this.clearAllHighlights()
@@ -88,7 +153,7 @@ class ImmersiveMemorize {
     for (const textNode of textNodes) {
       const text = textNode.textContent || ''
 
-      for (const word of this.jlptWordlist) {
+      for (const word of this.activeWordlist) {
         if (word && text.includes(word) && !this.learnedWords.has(word)) {
           // 找到第一个未学词汇，高亮它
           this.highlightSingleWord(textNode, word)
@@ -259,6 +324,9 @@ class ImmersiveMemorize {
       // 立即添加到已学词汇集合
       this.learnedWords.add(word)
 
+      // 更新词汇库中的学习进度
+      await this.updateLearningProgress(word)
+
       // 清除当前高亮并寻找下一个词汇
       this.clearAllHighlights()
       this.currentTargetWord = null
@@ -287,6 +355,26 @@ class ImmersiveMemorize {
     } catch (error) {
       console.error('[Immersive Memorize] 捕获数据失败:', error)
       this.showNotification('保存失败: ' + (error as Error).message, 'error')
+    }
+  }
+
+  private async updateLearningProgress(word: string): Promise<void> {
+    try {
+      const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
+      if (!selectedLibrary) return
+
+      // 查找词汇所属的等级
+      const vocabEntry = selectedLibrary.data.find(entry => entry.VocabKanji === word)
+      if (!vocabEntry) return
+
+      // 更新词汇库中的学习进度
+      await this.vocabLibraryManager.markWordAsLearned(word, vocabEntry.Level)
+
+      if (this.debugMode) {
+        console.log(`[Immersive Memorize] 更新学习进度: ${word} (${vocabEntry.Level})`)
+      }
+    } catch (error) {
+      console.error('[Immersive Memorize] 更新学习进度失败:', error)
     }
   }
 
