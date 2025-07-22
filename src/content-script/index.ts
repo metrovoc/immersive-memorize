@@ -296,7 +296,7 @@ class ImmersiveMemorize {
       const sentenceElement = this.currentTargetElement.closest(
         '.player-timedtext-text-container, .ltr-1472gpj, [data-uia="player-caption-text"]'
       ) as HTMLElement | null
-      const sentence = sentenceElement ? sentenceElement.innerText : ''
+      const sentence = sentenceElement ? sentenceElement.innerHTML : ''
 
       const videoElement = document.querySelector<HTMLVideoElement>('video')
       const timestamp = videoElement ? Math.floor(videoElement.currentTime) : 0
