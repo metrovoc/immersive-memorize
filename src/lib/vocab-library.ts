@@ -15,8 +15,18 @@ export class VocabLibraryManager {
   private async loadLibraries(): Promise<void> {
     try {
       // 加载JLPT词库
-      const jlptResponse = await fetch(chrome.runtime.getURL('dict/jlpt.json'))
+      const jlptUrl = chrome.runtime.getURL('dict/jlpt.json')
+      const jlptResponse = await fetch(jlptUrl)
+      
+      if (!jlptResponse.ok) {
+        throw new Error(`HTTP error! status: ${jlptResponse.status}`)
+      }
+      
       const jlptData: VocabEntry[] = await jlptResponse.json()
+      
+      if (!Array.isArray(jlptData) || jlptData.length === 0) {
+        throw new Error('JLPT数据格式无效或为空')
+      }
       
       const jlptLevels = ['N5', 'N4', 'N3', 'N2', 'N1']
       
@@ -24,15 +34,26 @@ export class VocabLibraryManager {
         id: 'jlpt',
         name: 'JLPT 日语能力考试',
         description: '包含 N5 到 N1 的全部词汇',
-        icon: '🇯🇵',
+        icon: '📚',
         data: jlptData,
         totalWords: jlptData.length,
         levels: jlptLevels
       }
 
       this.libraries = [jlptLibrary]
+      console.log(`[VocabLibrary] 成功加载JLPT词库: ${jlptData.length}个词汇`)
     } catch (error) {
       console.error('加载词库失败:', error)
+      // 创建空的库以避免后续错误
+      this.libraries = [{
+        id: 'jlpt',
+        name: 'JLPT 日语能力考试',
+        description: '词库加载失败，请刷新页面重试',
+        icon: '⚠️',
+        data: [],
+        totalWords: 0,
+        levels: []
+      }]
     }
   }
 

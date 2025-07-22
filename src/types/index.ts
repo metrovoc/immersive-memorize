@@ -53,3 +53,12 @@ export interface NotificationType {
   message: string
   type: 'success' | 'error' | 'warning' | 'info'
 }
+
+export type ViewMode = 'overview' | 'library-detail' | 'level-detail' | 'vocab-list' | 'learned-words'
+
+export interface ViewState {
+  mode: ViewMode
+  libraryId?: string
+  level?: string
+  breadcrumb: string[]
+}
