@@ -51,6 +51,10 @@ module.exports = {
           to: 'icons'
         },
         {
+          from: 'dict',
+          to: 'dict'
+        },
+        {
           from: 'src/popup/popup.html',
           to: 'popup/popup.html'
         },
