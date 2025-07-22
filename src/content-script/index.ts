@@ -429,7 +429,7 @@ class ImmersiveMemorize {
       color: white;
       padding: 12px 20px;
       border-radius: 8px;
-      z-index: 999999;
+      z-index: 2147483647;
       font-family: Arial, sans-serif;
       font-size: 16px;
       font-weight: bold;
@@ -442,20 +442,29 @@ class ImmersiveMemorize {
 
     notification.textContent = `${icon} ${message}`
 
-    // 添加CSS动画
-    if (!document.getElementById('im-notification-styles')) {
+    // 确定附加通知的目标元素
+    const appendTarget = document.fullscreenElement || document.body
+    if (this.debugMode) {
+      console.log('[Immersive Memorize] Appending notification to:', appendTarget.tagName)
+    }
+
+    // 将动画样式附加到目标元素内，以确保在 Shadow DOM 中也能生效
+    const styleId = 'im-notification-styles'
+    // 如果目标是 Shadow DOM，则在其中查找/附加样式，否则使用 document.head
+    const styleParent = appendTarget.shadowRoot || document.head
+    if (!styleParent.querySelector(`#${styleId}`)) {
       const style = document.createElement('style')
-      style.id = 'im-notification-styles'
+      style.id = styleId
       style.textContent = `
         @keyframes slideIn {
           from { transform: translateX(100%); opacity: 0; }
           to { transform: translateX(0); opacity: 1; }
         }
       `
-      document.head.appendChild(style)
+      styleParent.appendChild(style)
     }
 
-    document.body.appendChild(notification)
+    appendTarget.appendChild(notification)
 
     const duration = type === 'error' ? 4000 : type === 'warning' ? 3000 : 2000
     setTimeout(() => {
