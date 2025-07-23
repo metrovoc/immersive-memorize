@@ -1,4 +1,4 @@
-import type { VocabLibrary, VocabEntry, LevelProgress, VocabLibrarySettings } from '@/types'
+import type { VocabLibrary, VocabEntry, LevelProgress, VocabLibrarySettings, FlashCard } from '@/types'
 
 export class VocabLibraryManager {
   private libraries: VocabLibrary[] = []
@@ -83,7 +83,6 @@ export class VocabLibraryManager {
         level,
         enabled: true,
         totalWords: wordsInLevel.length,
-        learnedWords: [],
         progress: 0
       }
     }
@@ -124,26 +123,48 @@ export class VocabLibraryManager {
     }
   }
 
-  async markWordAsLearned(word: string, level: string): Promise<void> {
-    const levelProgress = this.settings.levelSettings[level]
-    if (levelProgress && !levelProgress.learnedWords.includes(word)) {
-      levelProgress.learnedWords.push(word)
-      levelProgress.progress = (levelProgress.learnedWords.length / levelProgress.totalWords) * 100
-      await this.saveSettings()
+  private async getFlashCards(): Promise<FlashCard[]> {
+    try {
+      const result = await chrome.storage.local.get(['savedCards'])
+      return result.savedCards || []
+    } catch (error) {
+      console.error('加载记忆卡片失败:', error)
+      return []
     }
   }
 
-  getActiveWordlist(): string[] {
+  private getLearnedWordsFromCards(cards: FlashCard[], level: string): string[] {
+    return cards
+      .filter(card => card.level === level)
+      .map(card => card.word)
+  }
+
+  async updateProgressFromCards(): Promise<void> {
+    const cards = await this.getFlashCards()
+    
+    for (const [level, progress] of Object.entries(this.settings.levelSettings)) {
+      const learnedWords = this.getLearnedWordsFromCards(cards, level)
+      progress.progress = progress.totalWords > 0 
+        ? (learnedWords.length / progress.totalWords) * 100 
+        : 0
+    }
+    
+    await this.saveSettings()
+  }
+
+  async getActiveWordlist(): Promise<string[]> {
     const selectedLibrary = this.getSelectedLibrary()
     if (!selectedLibrary) return []
 
+    const cards = await this.getFlashCards()
+    const learnedWords = new Set(cards.map(card => card.word))
     const activeWords: string[] = []
     
     for (const [level, progress] of Object.entries(this.settings.levelSettings)) {
       if (progress.enabled) {
         const wordsInLevel = selectedLibrary.data
           .filter(word => word.Level === level)
-          .filter(word => !progress.learnedWords.includes(word.VocabKanji))
+          .filter(word => !learnedWords.has(word.VocabKanji))
           .map(word => word.VocabKanji)
         
         activeWords.push(...wordsInLevel)
@@ -151,6 +172,15 @@ export class VocabLibraryManager {
     }
 
     return activeWords
+  }
+
+  async getLearnedWordsByLevel(level: string): Promise<FlashCard[]> {
+    const cards = await this.getFlashCards()
+    return cards.filter(card => card.level === level)
+  }
+
+  async getAllLearnedWords(): Promise<FlashCard[]> {
+    return await this.getFlashCards()
   }
 
   getSettings(): VocabLibrarySettings {

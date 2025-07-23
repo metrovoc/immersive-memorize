@@ -41,9 +41,11 @@ class OptionsManager {
 
     // 然后初始化
     await this.vocabLibraryManager.init()
+    // 确保从记忆卡片更新学习进度
+    await this.vocabLibraryManager.updateProgressFromCards()
     await this.loadSettings()
     this.setupEventListeners()
-    this.renderView()
+    await this.renderView()
   }
 
   private setupEventListeners(): void {
@@ -101,7 +103,7 @@ class OptionsManager {
     }
   }
 
-  private renderView(): void {
+  private async renderView(): Promise<void> {
     this.renderBreadcrumb()
 
     switch (this.viewState.mode) {
@@ -115,10 +117,10 @@ class OptionsManager {
         this.renderLevelDetail()
         break
       case 'vocab-list':
-        this.renderVocabList()
+        await this.renderVocabList()
         break
       case 'learned-words':
-        this.renderLearnedWords()
+        await this.renderLearnedWords()
         break
     }
   }
@@ -306,7 +308,7 @@ class OptionsManager {
                   
                   <div class="flex items-center gap-4">
                     <div class="text-right">
-                      <div class="text-sm font-medium">${level.learnedWords.length}/${level.totalWords}</div>
+                      <div class="text-sm font-medium">${Math.round(level.progress * level.totalWords / 100)}/${level.totalWords}</div>
                       <div class="text-xs text-muted-foreground">${Math.round(level.progress)}% 完成</div>
                     </div>
                     <button class="view-vocab-btn p-2 rounded-md hover:bg-accent transition-colors" data-level="${level.level}">
@@ -367,7 +369,7 @@ class OptionsManager {
     })
   }
 
-  private renderVocabList(): void {
+  private async renderVocabList(): Promise<void> {
     if (!this.selectedLibrary || !this.viewState.level) return
 
     const levelProgress = this.vocabLibraryManager.getLevelProgress(this.viewState.level)
@@ -376,13 +378,18 @@ class OptionsManager {
     const vocabEntries = this.selectedLibrary.data.filter(
       entry => entry.Level === this.viewState.level
     )
-    const learnedWords = new Set(levelProgress.learnedWords)
+    
+    // 获取该等级的已学词汇
+    const learnedCards = await this.vocabLibraryManager.getLearnedWordsByLevel(this.viewState.level!)
+    const learnedWords = new Set(learnedCards.map(card => card.word))
+
+    const learnedCount = learnedWords.size
 
     this.mainContent.innerHTML = `
       <div class="space-y-6">
         <div class="text-center py-4">
           <h2 class="text-2xl font-bold mb-2">${this.viewState.level} 词汇列表</h2>
-          <p class="text-muted-foreground">共 ${vocabEntries.length} 个词汇，已学 ${levelProgress.learnedWords.length} 个</p>
+          <p class="text-muted-foreground">共 ${vocabEntries.length} 个词汇，已学 ${learnedCount} 个</p>
           <div class="w-full bg-muted rounded-full h-2 mt-3 max-w-md mx-auto">
             <div 
               class="bg-primary h-2 rounded-full transition-all duration-300" 
@@ -429,43 +436,41 @@ class OptionsManager {
 
   private async renderLearnedWords(): Promise<void> {
     try {
-      // 获取所有已学词汇
-      const result = await chrome.storage.local.get(['savedCards'])
-      const savedCards = result.savedCards || []
-
-      // 获取词汇库设置
-      const levelsProgress = this.vocabLibraryManager.getAllLevelsProgress()
-      const allLearnedWords = new Set<string>()
-      levelsProgress.forEach(level => {
-        level.learnedWords.forEach(word => allLearnedWords.add(word))
-      })
+      // 获取所有已学词汇 (现在直接从记忆卡片获取)
+      const allLearnedCards = await this.vocabLibraryManager.getAllLearnedWords()
 
       // 按等级分组
       const wordsByLevel: Record<string, any[]> = {}
 
       if (this.selectedLibrary) {
-        for (const word of allLearnedWords) {
+        for (const card of allLearnedCards) {
           const vocabEntry: VocabEntry | undefined = this.selectedLibrary.data.find(
-            entry => entry.VocabKanji === word
+            entry => entry.VocabKanji === card.word
           )
-          if (vocabEntry) {
-            const level = vocabEntry.Level
+          
+          // 使用卡片的等级信息，如果没有则从词库查找
+          const level = card.level || vocabEntry?.Level
+          
+          if (level) {
             if (!wordsByLevel[level]) {
               wordsByLevel[level] = []
             }
 
-            // 查找对应的卡片
-            const card = savedCards.find((c: any) => c.word === word)
             wordsByLevel[level].push({
-              vocab: vocabEntry,
+              vocab: vocabEntry || {
+                VocabKanji: card.word,
+                VocabFurigana: card.reading || '',
+                VocabDefCN: card.definition || '',
+                Level: level
+              },
               card: card,
-              learnedDate: card?.createdAt || '未知',
+              learnedDate: card.createdAt || '未知',
             })
           }
         }
       }
 
-      const totalLearnedWords = Array.from(allLearnedWords).length
+      const totalLearnedWords = allLearnedCards.length
 
       this.mainContent.innerHTML = `
         <div class="space-y-6">
@@ -523,12 +528,12 @@ class OptionsManager {
                   ${wordsByLevel[level]
                     .map(
                       item => `
-                    <div class="vocab-card bg-muted/30 rounded-lg border p-4">
+                    <div class="vocab-card bg-card rounded-lg border p-4 hover:bg-accent/50 transition-colors">
                       <div class="flex items-start justify-between">
                         <div class="flex-1">
                           <div class="flex items-center gap-3 mb-2">
-                            <div class="text-xl font-bold text-primary">${this.escapeHtml(item.vocab.VocabKanji)}</div>
-                            <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">已学会</div>
+                            <div class="text-lg font-bold text-primary">${this.escapeHtml(item.vocab.VocabKanji)}</div>
+                            <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">${level}</div>
                           </div>
                           
                           ${
@@ -538,20 +543,22 @@ class OptionsManager {
                               : ''
                           }
                           
-                          <div class="text-sm mb-2">${this.escapeHtml(item.vocab.VocabDefCN || '暂无释义')}</div>
+                          <div class="text-sm text-foreground mb-2">${this.escapeHtml(item.vocab.VocabDefCN || '暂无释义')}</div>
                           
-                          <div class="flex items-center gap-4 text-xs text-muted-foreground">
-                            ${item.vocab.VocabPoS ? `<span>词性: ${this.escapeHtml(item.vocab.VocabPoS)}</span>` : ''}
-                            ${item.vocab.Frequency ? `<span>频率: ${this.escapeHtml(item.vocab.Frequency)}</span>` : ''}
+                          <div class="text-xs text-muted-foreground mb-2 flex items-center gap-2">
                             <span>学习时间: ${new Date(item.learnedDate).toLocaleDateString()}</span>
+                            ${item.vocab.VocabPoS ? `<span>•</span><span>词性: ${this.escapeHtml(item.vocab.VocabPoS)}</span>` : ''}
+                            ${item.vocab.Frequency ? `<span>•</span><span>频率: ${this.escapeHtml(item.vocab.Frequency)}</span>` : ''}
                           </div>
                           
                           ${
-                            item.card
+                            item.card && item.card.sentence
                               ? `
-                            <div class="mt-2 text-xs text-muted-foreground">
-                              <span>来源: ${this.escapeHtml(item.card.sourceTitle)}</span>
-                              ${item.card.sentence ? ` • 句子: ${item.card.sentence}` : ''}
+                            <div class="text-sm text-foreground/80 leading-relaxed break-words border-l-2 border-muted pl-3 mt-2">
+                              ${item.card.sentence}
+                            </div>
+                            <div class="text-xs text-muted-foreground mt-1">
+                              来源: ${this.escapeHtml(item.card.sourceTitle)} • ${this.formatTimestamp(item.card.timestamp)}
                             </div>
                           `
                               : ''
@@ -647,6 +654,10 @@ class OptionsManager {
     if (confirm('确定要删除所有卡片吗？此操作不可撤销。')) {
       try {
         await chrome.storage.local.set({ savedCards: [] })
+        // 更新学习进度（从记忆卡片推导）
+        await this.vocabLibraryManager.updateProgressFromCards()
+        // 重新渲染已学词汇页面
+        await this.renderLearnedWords()
         this.showNotification('所有卡片已清空', 'success')
       } catch (error) {
         console.error('清空失败:', error)

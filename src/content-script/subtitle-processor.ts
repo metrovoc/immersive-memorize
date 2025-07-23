@@ -16,9 +16,9 @@ export class SubtitleProcessor {
     this.updateWordLists(); // Then call the method that sets it
   }
 
-  public updateWordLists(): void {
+  public async updateWordLists(): Promise<void> {
     // Get the list of active, unlearned words (lemmas) from the library
-    const activeList = this.vocabLibraryManager.getActiveWordlist();
+    const activeList = await this.vocabLibraryManager.getActiveWordlist();
     this.activeWordLemmas = new Set(activeList);
     if (this.debugMode) {
       console.log(`[SubtitleProcessor] Word lists updated. ${this.activeWordLemmas.size} active lemmas to look for.`);
