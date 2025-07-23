@@ -23,4 +23,4 @@ export async function analyze(text: string): Promise<Word[]> {
   return processor.buildWords(tokens);
 }
 
-export { Word } from "./common";
+export type { Word } from "./common";

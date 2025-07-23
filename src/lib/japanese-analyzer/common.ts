@@ -1,8 +1,19 @@
 
-import { IpadicFeatures } from "@patdx/kuromoji/build/kuromoji";
-
-// Interfaces matching the structure of kuromoji token data
-export interface KuromojiToken extends IpadicFeatures {}
+export interface KuromojiToken {
+  word_id: number;
+  word_type: 'KNOWN' | 'UNKNOWN';
+  word_position: number;
+  surface_form: string;
+  pos: string;
+  pos_detail_1: string;
+  pos_detail_2: string;
+  pos_detail_3: string;
+  conjugated_type: string;
+  conjugated_form: string;
+  basic_form: string;
+  reading?: string;
+  pronunciation?: string;
+}
 
 // The final Word structure, mirroring Ve::Word
 export interface Word {
