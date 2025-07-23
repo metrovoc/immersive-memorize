@@ -1,5 +1,6 @@
 import '../globals.css'
 import type { FlashCard, ExtensionSettings } from '@/types'
+import { VocabLibraryManager } from '@/lib/vocab-library'
 
 class PopupManager {
   private totalCardsSpan: HTMLElement
@@ -10,6 +11,7 @@ class PopupManager {
   private notification: HTMLElement
   private settingsButton: HTMLButtonElement
   private learnedWordsButton: HTMLButtonElement
+  private vocabLibraryManager: VocabLibraryManager
 
   private savedCards: FlashCard[] = []
   private currentPage = 1
@@ -24,9 +26,11 @@ class PopupManager {
     this.notification = document.getElementById('notification')!
     this.settingsButton = document.getElementById('settings-button') as HTMLButtonElement
     this.learnedWordsButton = document.getElementById('learned-words-button') as HTMLButtonElement
+    this.vocabLibraryManager = new VocabLibraryManager()
   }
 
   async init(): Promise<void> {
+    await this.vocabLibraryManager.init()
     await this.loadCards()
     this.setupEventListeners()
   }
@@ -81,13 +85,28 @@ class PopupManager {
       <div class="card border rounded-lg p-4 mb-3 bg-card hover:bg-accent/50 transition-colors group" data-id="${card.id}">
         <div class="flex justify-between items-start gap-3">
           <div class="flex-1 min-w-0">
-            <div class="font-bold text-lg mb-1 text-primary">${this.escapeHtml(card.word)}</div>
+            <div class="flex items-center gap-3 mb-2">
+              <div class="font-bold text-lg text-primary">${this.escapeHtml(card.word)}</div>
+              ${card.level ? `<div class="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">${card.level}</div>` : ''}
+            </div>
+            
+            ${card.reading && card.reading !== card.word ? 
+              `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(card.reading)}</div>` : ''
+            }
+            
+            ${card.definition ? 
+              `<div class="text-sm text-foreground mb-2">${this.escapeHtml(card.definition)}</div>` : ''
+            }
+            
             <div class="text-xs text-muted-foreground mb-2 flex items-center gap-2">
               <span>${this.escapeHtml(card.sourceTitle)}</span>
               <span>•</span>
               <span>${this.formatTimestamp(card.timestamp)}</span>
+              <span>•</span>
+              <span>${new Date(card.createdAt).toLocaleDateString()}</span>
             </div>
-            <div class="text-sm text-foreground leading-relaxed break-words">${card.sentence}</div>
+            
+            <div class="text-sm text-foreground/80 leading-relaxed break-words border-l-2 border-muted pl-3">${card.sentence}</div>
           </div>
           <button 
             class="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8" 
@@ -136,6 +155,9 @@ class PopupManager {
       try {
         this.savedCards = this.savedCards.filter(card => card.id !== cardId)
         await chrome.storage.local.set({ savedCards: this.savedCards })
+
+        // 更新学习进度（从记忆卡片推导）
+        await this.vocabLibraryManager.updateProgressFromCards()
 
         const totalPages = Math.ceil(this.savedCards.length / this.cardsPerPage)
         if (this.currentPage > totalPages && totalPages > 0) {
