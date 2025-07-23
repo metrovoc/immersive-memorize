@@ -12,7 +12,8 @@ export class SubtitleProcessor {
     this.vocabLibraryManager = vocabLibraryManager;
     this.learnedWords = learnedWords;
     this.debugMode = debugMode;
-    this.updateWordLists(); // Initialize word lists
+    this.activeWordLemmas = new Set(); // Initialize explicitly
+    this.updateWordLists(); // Then call the method that sets it
   }
 
   public updateWordLists(): void {
