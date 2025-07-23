@@ -109,8 +109,8 @@ class PopupManager {
             <div class="text-sm text-foreground/80 leading-relaxed break-words border-l-2 border-muted pl-3">${card.sentence}</div>
           </div>
           <button 
-            class="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8" 
-            onclick="window.deleteCard(${card.id})"
+            class="delete-card-btn opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8" 
+            data-card-id="${card.id}"
             title="删除卡片"
           >
             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -120,6 +120,15 @@ class PopupManager {
         </div>
       </div>
     `).join('')
+
+    // 为所有删除按钮添加事件监听器
+    this.cardsList.querySelectorAll('.delete-card-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation()
+        const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
+        await this.deleteCard(cardId)
+      })
+    })
   }
 
   private updatePagination(): void {
@@ -225,12 +234,7 @@ class PopupManager {
   }
 }
 
-// 使 deleteCard 全局可用
-declare global {
-  interface Window {
-    deleteCard: (cardId: number) => Promise<void>
-  }
-}
+// 删除全局声明，不再需要
 
 document.addEventListener('DOMContentLoaded', async () => {
   // 创建现代化UI
@@ -283,7 +287,4 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const popupManager = new PopupManager()
   await popupManager.init()
-
-  // 将 deleteCard 方法暴露给全局
-  window.deleteCard = (cardId: number) => popupManager.deleteCard(cardId)
 })
