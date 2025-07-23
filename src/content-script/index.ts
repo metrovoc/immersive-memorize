@@ -120,32 +120,72 @@ class ImmersiveMemorize {
   }
 
   private startSubtitleObserver(): void {
-    const targetNode = document.body
+    const subtitleSelectors = [
+      '.player-timedtext-text-container',
+      '.ltr-1472gpj',
+      '[data-uia="player-caption-text"]',
+    ].join(', ');
 
-    this.observer = new MutationObserver(mutations => {
+    const handleMutation = (mutations: MutationRecord[]) => {
       mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
-          const subtitleContainers = document.querySelectorAll<HTMLElement>(
-            '.player-timedtext-text-container, ' +
-              '.ltr-1472gpj, ' +
-              '[data-uia="player-caption-text"]'
-          )
+          mutation.addedNodes.forEach(node => {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              const element = node as HTMLElement;
+              
+              // Check if the added element itself is a subtitle container or if it contains one.
+              const containers = element.matches(subtitleSelectors)
+                ? [element]
+                : Array.from(element.querySelectorAll<HTMLElement>(subtitleSelectors));
 
-          subtitleContainers.forEach(container => {
-            if (!container.dataset.imProcessed) {
-              this.processSubtitleContainer(container)
-              container.dataset.imProcessed = 'true'
+              containers.forEach(container => {
+                if (!container.dataset.imProcessed) {
+                  this.processSubtitleContainer(container);
+                  container.dataset.imProcessed = 'true';
+                }
+              });
             }
-          })
+          });
         }
-      })
-    })
+      });
+    };
 
-    this.observer.observe(targetNode, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    })
+    this.observer = new MutationObserver(handleMutation);
+
+    // Instead of observing the body immediately, wait for a potential subtitle container to appear first
+    // to find a more specific observation target.
+    const initialCheck = () => {
+      const subtitleParent = document.querySelector(subtitleSelectors)?.parentElement;
+      if (subtitleParent) {
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] Subtitle container found. Attaching observer to parent:', subtitleParent);
+        }
+        this.observer?.observe(subtitleParent, {
+          childList: true,
+          subtree: true, // Subtree is needed as subtitles might be added nested inside the parent
+        });
+        // Also process any subtitles that might already be on the page
+        document.querySelectorAll<HTMLElement>(subtitleSelectors).forEach(container => {
+          if (!container.dataset.imProcessed) {
+            this.processSubtitleContainer(container);
+            container.dataset.imProcessed = 'true';
+          }
+        });
+      } else {
+        // If not found, fallback to observing the body, but with a delay to allow video players to load.
+        // This is a fallback and less efficient.
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] No subtitle container found yet. Falling back to observing body.');
+        }
+        this.observer?.observe(document.body, {
+          childList: true,
+          subtree: true,
+        });
+      }
+    };
+    
+    // Give the page a moment to load the player UI
+    setTimeout(initialCheck, 2000);
   }
 
   private async processSubtitleContainer(container: HTMLElement): Promise<void> {
