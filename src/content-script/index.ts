@@ -38,11 +38,14 @@ class ImmersiveMemorize {
       this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word)) // Assuming card.word stores the lemma
 
       // 初始化 SubtitleProcessor
-      this.subtitleProcessor = new SubtitleProcessor(this.vocabLibraryManager, this.learnedWords, this.debugMode)
+      this.subtitleProcessor = new SubtitleProcessor(
+        this.vocabLibraryManager,
+        this.learnedWords,
+        this.debugMode
+      )
 
       // 初始化 NetflixExtractor
       this.netflixExtractor = new NetflixExtractor(this.debugMode)
-
 
       if (this.debugMode) {
         const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
@@ -72,44 +75,44 @@ class ImmersiveMemorize {
 
   private setupStorageListener(): void {
     chrome.storage.onChanged.addListener(async changes => {
-      let needsRefresh = false;
+      let needsRefresh = false
 
       if (changes.vocabLibrarySettings) {
-        await this.vocabLibraryManager.init();
-        await this.subtitleProcessor?.updateWordLists();
-        needsRefresh = true;
+        await this.vocabLibraryManager.init()
+        await this.subtitleProcessor?.updateWordLists()
+        needsRefresh = true
 
         if (this.debugMode) {
-          console.log('[Immersive Memorize] 词汇表设置已更新，重新处理字幕。');
+          console.log('[Immersive Memorize] 词汇表设置已更新，重新处理字幕。')
         }
       }
 
       if (changes.savedCards) {
-        const savedCards = changes.savedCards.newValue || [];
-        this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word));
-        this.subtitleProcessor?.setLearnedWords(this.learnedWords);
-        needsRefresh = true;
+        const savedCards = changes.savedCards.newValue || []
+        this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
+        this.subtitleProcessor?.setLearnedWords(this.learnedWords)
+        needsRefresh = true
 
         if (this.debugMode) {
-          console.log('[Immersive Memorize] 已学词汇列表已更新，重新处理字幕。');
+          console.log('[Immersive Memorize] 已学词汇列表已更新，重新处理字幕。')
         }
       }
 
       if (changes.captureHotkey) {
-        this.captureHotkey = changes.captureHotkey.newValue || 's';
+        this.captureHotkey = changes.captureHotkey.newValue || 's'
         if (this.debugMode) {
-          console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`);
+          console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`)
         }
       }
 
       if (changes.debugMode) {
-        this.debugMode = changes.debugMode.newValue !== false;
+        this.debugMode = changes.debugMode.newValue !== false
       }
 
       if (needsRefresh) {
-        this.refreshCurrentSubtitles();
+        this.refreshCurrentSubtitles()
       }
-    });
+    })
   }
 
   private refreshCurrentSubtitles(): void {
@@ -129,68 +132,73 @@ class ImmersiveMemorize {
       '.player-timedtext-text-container',
       '.ltr-1472gpj',
       '[data-uia="player-caption-text"]',
-    ].join(', ');
+    ].join(', ')
 
     const handleMutation = (mutations: MutationRecord[]) => {
       mutations.forEach(mutation => {
         if (mutation.type === 'childList') {
           mutation.addedNodes.forEach(node => {
             if (node.nodeType === Node.ELEMENT_NODE) {
-              const element = node as HTMLElement;
-              
+              const element = node as HTMLElement
+
               // Check if the added element itself is a subtitle container or if it contains one.
               const containers = element.matches(subtitleSelectors)
                 ? [element]
-                : Array.from(element.querySelectorAll<HTMLElement>(subtitleSelectors));
+                : Array.from(element.querySelectorAll<HTMLElement>(subtitleSelectors))
 
               containers.forEach(container => {
                 if (!container.dataset.imProcessed) {
-                  this.processSubtitleContainer(container);
-                  container.dataset.imProcessed = 'true';
+                  this.processSubtitleContainer(container)
+                  container.dataset.imProcessed = 'true'
                 }
-              });
+              })
             }
-          });
+          })
         }
-      });
-    };
+      })
+    }
 
-    this.observer = new MutationObserver(handleMutation);
+    this.observer = new MutationObserver(handleMutation)
 
     // Instead of observing the body immediately, wait for a potential subtitle container to appear first
     // to find a more specific observation target.
     const initialCheck = () => {
-      const subtitleParent = document.querySelector(subtitleSelectors)?.parentElement;
+      const subtitleParent = document.querySelector(subtitleSelectors)?.parentElement
       if (subtitleParent) {
         if (this.debugMode) {
-          console.log('[Immersive Memorize] Subtitle container found. Attaching observer to parent:', subtitleParent);
+          console.log(
+            '[Immersive Memorize] Subtitle container found. Attaching observer to parent:',
+            subtitleParent
+          )
         }
         this.observer?.observe(subtitleParent, {
           childList: true,
           subtree: true, // Subtree is needed as subtitles might be added nested inside the parent
-        });
+        })
         // Also process any subtitles that might already be on the page
         document.querySelectorAll<HTMLElement>(subtitleSelectors).forEach(container => {
           if (!container.dataset.imProcessed) {
-            this.processSubtitleContainer(container);
-            container.dataset.imProcessed = 'true';
+            this.processSubtitleContainer(container)
+            container.dataset.imProcessed = 'true'
           }
-        });
+        })
       } else {
         // If not found, fallback to observing the body, but with a delay to allow video players to load.
         // This is a fallback and less efficient.
         if (this.debugMode) {
-          console.log('[Immersive Memorize] No subtitle container found yet. Falling back to observing body.');
+          console.log(
+            '[Immersive Memorize] No subtitle container found yet. Falling back to observing body.'
+          )
         }
         this.observer?.observe(document.body, {
           childList: true,
           subtree: true,
-        });
+        })
       }
-    };
-    
+    }
+
     // Give the page a moment to load the player UI
-    setTimeout(initialCheck, 2000);
+    setTimeout(initialCheck, 2000)
   }
 
   private async processSubtitleContainer(container: HTMLElement): Promise<void> {
@@ -200,18 +208,18 @@ class ImmersiveMemorize {
     this.clearAllHighlights()
 
     this.currentTargetWord = await this.subtitleProcessor.processAndHighlight(container)
-    this.currentTargetElement = document.querySelector('.im-current-target');
+    this.currentTargetElement = document.querySelector('.im-current-target')
 
     if (this.debugMode) {
       if (this.currentTargetWord) {
-        console.log(`[Immersive Memorize] 当前目标词汇: ${this.currentTargetWord.word} (原形: ${this.currentTargetWord.lemma})`);
+        console.log(
+          `[Immersive Memorize] 当前目标词汇: ${this.currentTargetWord.word} (原形: ${this.currentTargetWord.lemma})`
+        )
       } else {
-        console.log('[Immersive Memorize] 当前字幕无未学词汇');
+        console.log('[Immersive Memorize] 当前字幕无未学词汇')
       }
     }
   }
-
-  
 
   private clearAllHighlights(): void {
     const highlights = document.querySelectorAll<HTMLElement>('.im-highlight')
@@ -262,8 +270,8 @@ class ImmersiveMemorize {
     if (!this.currentTargetWord || !this.currentTargetElement) return
 
     try {
-      const word = this.currentTargetWord;
-      const lemma = word.lemma; // Use lemma as the unique identifier
+      const word = this.currentTargetWord
+      const lemma = word.lemma // Use lemma as the unique identifier
 
       // 检查是否已经学过这个词 (based on lemma)
       if (this.learnedWords.has(lemma)) {
@@ -312,7 +320,7 @@ class ImmersiveMemorize {
       if (this.netflixExtractor) {
         netflixInfo = this.netflixExtractor.extractNetflixInfo()
         sourceTitle = netflixInfo.fullTitle
-        
+
         if (this.debugMode) {
           console.log('[Immersive Memorize] 提取的Netflix信息:', netflixInfo)
         }
@@ -351,7 +359,7 @@ class ImmersiveMemorize {
 
       // 立即添加到已学词汇集合
       this.learnedWords.add(lemma)
-      this.subtitleProcessor?.setLearnedWords(this.learnedWords);
+      this.subtitleProcessor?.setLearnedWords(this.learnedWords)
 
       // 更新词汇库中的学习进度（从记忆卡片推导）
       await this.vocabLibraryManager.updateProgressFromCards()
@@ -371,13 +379,11 @@ class ImmersiveMemorize {
       setTimeout(() => {
         this.refreshCurrentSubtitles()
       }, 100)
-
     } catch (error) {
       console.error('[Immersive Memorize] 捕获数据失败:', error)
       this.showNotification('保存失败: ' + (error as Error).message, 'error')
     }
   }
-
 
   private async captureVideoFrame(videoElement: HTMLVideoElement | null): Promise<string> {
     if (!videoElement) return ''
