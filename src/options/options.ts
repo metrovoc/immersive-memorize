@@ -13,7 +13,7 @@ class OptionsManager {
 
   private viewState: ViewState = {
     mode: 'overview',
-    breadcrumb: ['设置']
+    breadcrumb: ['设置'],
   }
 
   constructor() {
@@ -28,17 +28,17 @@ class OptionsManager {
     this.notification = document.getElementById('notification')!
     this.mainContent = document.getElementById('main-content')!
     this.breadcrumbContainer = document.getElementById('breadcrumb')!
-    
+
     // 检查URL参数
     const urlParams = new URLSearchParams(window.location.search)
     const view = urlParams.get('view')
     if (view === 'learned-words') {
       this.viewState = {
         mode: 'learned-words',
-        breadcrumb: ['设置', '已学词汇']
+        breadcrumb: ['设置', '已学词汇'],
       }
     }
-    
+
     // 然后初始化
     await this.vocabLibraryManager.init()
     await this.loadSettings()
@@ -48,7 +48,7 @@ class OptionsManager {
 
   private setupEventListeners(): void {
     if (this.hotkeyInput) {
-      this.hotkeyInput.addEventListener('keydown', (e) => this.handleHotkeyInput(e))
+      this.hotkeyInput.addEventListener('keydown', e => this.handleHotkeyInput(e))
     }
     if (this.debugCheckbox) {
       this.debugCheckbox.addEventListener('change', () => this.saveSettings())
@@ -57,7 +57,10 @@ class OptionsManager {
 
   private async loadSettings(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['captureHotkey', 'debugMode']) as Partial<ExtensionSettings>
+      const result = (await chrome.storage.local.get([
+        'captureHotkey',
+        'debugMode',
+      ])) as Partial<ExtensionSettings>
       const hotkey = result.captureHotkey || 's'
       const debugMode = result.debugMode !== false
 
@@ -84,7 +87,7 @@ class OptionsManager {
 
       await chrome.storage.local.set({
         captureHotkey: hotkey,
-        debugMode: debugMode
+        debugMode: debugMode,
       })
 
       if (this.notification) {
@@ -100,7 +103,7 @@ class OptionsManager {
 
   private renderView(): void {
     this.renderBreadcrumb()
-    
+
     switch (this.viewState.mode) {
       case 'overview':
         this.renderOverview()
@@ -121,20 +124,22 @@ class OptionsManager {
   }
 
   private renderBreadcrumb(): void {
-    this.breadcrumbContainer.innerHTML = this.viewState.breadcrumb.map((item, index) => {
-      const isLast = index === this.viewState.breadcrumb.length - 1
-      return `
+    this.breadcrumbContainer.innerHTML = this.viewState.breadcrumb
+      .map((item, index) => {
+        const isLast = index === this.viewState.breadcrumb.length - 1
+        return `
         <span class="${isLast ? 'text-foreground font-medium' : 'text-muted-foreground hover:text-foreground cursor-pointer'}" 
               data-breadcrumb-index="${index}">
           ${item}
         </span>
         ${!isLast ? '<svg class="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>' : ''}
       `
-    }).join('')
+      })
+      .join('')
 
     // 添加面包屑导航点击事件
     this.breadcrumbContainer.querySelectorAll('[data-breadcrumb-index]').forEach(item => {
-      item.addEventListener('click', (e) => {
+      item.addEventListener('click', e => {
         const index = parseInt((e.target as HTMLElement).dataset.breadcrumbIndex!)
         this.navigateBack(index)
       })
@@ -148,7 +153,7 @@ class OptionsManager {
       this.viewState = {
         mode: 'library-detail',
         libraryId: this.viewState.libraryId,
-        breadcrumb: ['设置', '词汇库管理']
+        breadcrumb: ['设置', '词汇库管理'],
       }
     }
     this.renderView()
@@ -224,13 +229,17 @@ class OptionsManager {
     document.getElementById('vocab-library-card')?.addEventListener('click', () => {
       this.viewState = {
         mode: 'library-detail',
-        breadcrumb: ['设置', '词汇库管理']
+        breadcrumb: ['设置', '词汇库管理'],
       }
       this.renderView()
     })
 
-    document.getElementById('export-cards-btn')?.addEventListener('click', () => this.exportToAnki())
-    document.getElementById('clear-cards-btn')?.addEventListener('click', () => this.clearAllCards())
+    document
+      .getElementById('export-cards-btn')
+      ?.addEventListener('click', () => this.exportToAnki())
+    document
+      .getElementById('clear-cards-btn')
+      ?.addEventListener('click', () => this.clearAllCards())
   }
 
   private renderLibraryDetail(): void {
@@ -245,7 +254,9 @@ class OptionsManager {
         </div>
 
         <div class="grid gap-4">
-          ${libraries.map(library => `
+          ${libraries
+            .map(
+              library => `
             <div class="library-card ${library.id === selectedId ? 'selected' : ''}" data-library-id="${library.id}">
               <div class="flex items-center justify-between p-6 bg-card rounded-lg border cursor-pointer hover:shadow-md transition-all">
                 <div class="flex-1">
@@ -263,22 +274,24 @@ class OptionsManager {
                 </div>
               </div>
             </div>
-          `).join('')}
+          `
+            )
+            .join('')}
         </div>
       </div>
     `
 
     // 添加点击事件
     this.mainContent.querySelectorAll('.library-card').forEach(card => {
-      card.addEventListener('click', async (e) => {
+      card.addEventListener('click', async e => {
         const libraryId = (e.currentTarget as HTMLElement).dataset.libraryId!
         await this.selectLibrary(libraryId)
-        
+
         // 进入等级详情页面
         this.viewState = {
           mode: 'level-detail',
           libraryId: libraryId,
-          breadcrumb: ['设置', '词汇库管理', this.selectedLibrary?.name || '词汇库']
+          breadcrumb: ['设置', '词汇库管理', this.selectedLibrary?.name || '词汇库'],
         }
         this.renderView()
       })
@@ -295,7 +308,7 @@ class OptionsManager {
     if (!this.selectedLibrary) return
 
     const levelsProgress = this.vocabLibraryManager.getAllLevelsProgress()
-    
+
     this.mainContent.innerHTML = `
       <div class="space-y-6">
         <div class="text-center py-4">
@@ -304,20 +317,14 @@ class OptionsManager {
         </div>
 
         <div class="grid gap-4">
-          ${levelsProgress.map(level => `
+          ${levelsProgress
+            .map(
+              level => `
             <div class="level-card ${level.enabled ? 'enabled' : 'disabled'}" data-level="${level.level}">
               <div class="bg-card rounded-lg border p-6 hover:shadow-md transition-shadow">
                 <div class="flex items-center justify-between mb-4">
                   <div class="flex items-center space-x-4">
-                    <label class="flex items-center space-x-3 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        ${level.enabled ? 'checked' : ''}
-                        class="level-checkbox h-5 w-5 rounded border border-primary text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-                        data-level="${level.level}"
-                      >
-                      <span class="font-semibold text-xl">${level.level}</span>
-                    </label>
+                    <span class="font-semibold text-xl">${level.level}</span>
                     <div class="text-sm text-muted-foreground">
                       ${level.totalWords} 个词汇
                     </div>
@@ -347,20 +354,22 @@ class OptionsManager {
 
                 <div class="text-xs text-muted-foreground">
                   <label class="flex items-center">
-                    <input type="checkbox" ${level.enabled ? 'checked' : ''} class="level-checkbox-text mr-2 h-3 w-3" data-level="${level.level}">
+                    <input type="checkbox" ${level.enabled ? 'checked' : ''} class="level-checkbox mr-2 h-3 w-3" data-level="${level.level}">
                     在学习时包含此等级的词汇
                   </label>
                 </div>
               </div>
             </div>
-          `).join('')}
+          `
+            )
+            .join('')}
         </div>
       </div>
     `
 
     // 添加事件监听器
-    this.mainContent.querySelectorAll('.level-checkbox, .level-checkbox-text').forEach(checkbox => {
-      checkbox.addEventListener('change', async (e) => {
+    this.mainContent.querySelectorAll('.level-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', async e => {
         const target = e.target as HTMLInputElement
         const level = target.dataset.level!
         const enabled = target.checked
@@ -370,14 +379,14 @@ class OptionsManager {
     })
 
     this.mainContent.querySelectorAll('.view-vocab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
+      btn.addEventListener('click', e => {
         e.stopPropagation()
         const level = (e.currentTarget as HTMLElement).dataset.level!
         this.viewState = {
           mode: 'vocab-list',
           libraryId: this.selectedLibrary!.id,
           level: level,
-          breadcrumb: ['设置', '词汇库管理', this.selectedLibrary!.name, level]
+          breadcrumb: ['设置', '词汇库管理', this.selectedLibrary!.name, level],
         }
         this.renderView()
       })
@@ -390,7 +399,9 @@ class OptionsManager {
     const levelProgress = this.vocabLibraryManager.getLevelProgress(this.viewState.level)
     if (!levelProgress) return
 
-    const vocabEntries = this.selectedLibrary.data.filter(entry => entry.Level === this.viewState.level)
+    const vocabEntries = this.selectedLibrary.data.filter(
+      entry => entry.Level === this.viewState.level
+    )
     const learnedWords = new Set(levelProgress.learnedWords)
 
     this.mainContent.innerHTML = `
@@ -423,8 +434,11 @@ class OptionsManager {
               ${isLearned ? '<div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">已学会</div>' : ''}
             </div>
             
-            ${vocab.VocabFurigana && vocab.VocabFurigana !== vocab.VocabKanji ? 
-              `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(vocab.VocabFurigana)}</div>` : ''}
+            ${
+              vocab.VocabFurigana && vocab.VocabFurigana !== vocab.VocabKanji
+                ? `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(vocab.VocabFurigana)}</div>`
+                : ''
+            }
             
             <div class="text-sm mb-2">${this.escapeHtml(vocab.VocabDefCN || '暂无释义')}</div>
             
@@ -444,7 +458,7 @@ class OptionsManager {
       // 获取所有已学词汇
       const result = await chrome.storage.local.get(['savedCards'])
       const savedCards = result.savedCards || []
-      
+
       // 获取词汇库设置
       const levelsProgress = this.vocabLibraryManager.getAllLevelsProgress()
       const allLearnedWords = new Set<string>()
@@ -454,22 +468,24 @@ class OptionsManager {
 
       // 按等级分组
       const wordsByLevel: Record<string, any[]> = {}
-      
+
       if (this.selectedLibrary) {
         for (const word of allLearnedWords) {
-          const vocabEntry: VocabEntry | undefined = this.selectedLibrary.data.find(entry => entry.VocabKanji === word)
+          const vocabEntry: VocabEntry | undefined = this.selectedLibrary.data.find(
+            entry => entry.VocabKanji === word
+          )
           if (vocabEntry) {
             const level = vocabEntry.Level
             if (!wordsByLevel[level]) {
               wordsByLevel[level] = []
             }
-            
+
             // 查找对应的卡片
             const card = savedCards.find((c: any) => c.word === word)
             wordsByLevel[level].push({
               vocab: vocabEntry,
               card: card,
-              learnedDate: card?.createdAt || '未知'
+              learnedDate: card?.createdAt || '未知',
             })
           }
         }
@@ -486,15 +502,20 @@ class OptionsManager {
 
           <!-- 统计信息 -->
           <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-            ${Object.keys(wordsByLevel).sort((a, b) => {
-              const order = ['N5', 'N4', 'N3', 'N2', 'N1']
-              return order.indexOf(a) - order.indexOf(b)
-            }).map(level => `
+            ${Object.keys(wordsByLevel)
+              .sort((a, b) => {
+                const order = ['N5', 'N4', 'N3', 'N2', 'N1']
+                return order.indexOf(a) - order.indexOf(b)
+              })
+              .map(
+                level => `
               <div class="bg-card rounded-lg border p-4 text-center">
                 <div class="text-2xl font-bold text-primary">${wordsByLevel[level].length}</div>
                 <div class="text-sm text-muted-foreground">${level}</div>
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
 
           <!-- 导出功能 -->
@@ -515,14 +536,19 @@ class OptionsManager {
 
           <!-- 按等级显示已学词汇 -->
           <div class="space-y-6">
-            ${Object.keys(wordsByLevel).sort((a, b) => {
-              const order = ['N5', 'N4', 'N3', 'N2', 'N1']
-              return order.indexOf(a) - order.indexOf(b)
-            }).map(level => `
+            ${Object.keys(wordsByLevel)
+              .sort((a, b) => {
+                const order = ['N5', 'N4', 'N3', 'N2', 'N1']
+                return order.indexOf(a) - order.indexOf(b)
+              })
+              .map(
+                level => `
               <div class="bg-card rounded-lg border p-6">
                 <h3 class="text-lg font-semibold mb-4">${level} 等级 (${wordsByLevel[level].length} 个词汇)</h3>
                 <div class="grid gap-4">
-                  ${wordsByLevel[level].map(item => `
+                  ${wordsByLevel[level]
+                    .map(
+                      item => `
                     <div class="vocab-card bg-muted/30 rounded-lg border p-4">
                       <div class="flex items-start justify-between">
                         <div class="flex-1">
@@ -531,8 +557,12 @@ class OptionsManager {
                             <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">已学会</div>
                           </div>
                           
-                          ${item.vocab.VocabFurigana && item.vocab.VocabFurigana !== item.vocab.VocabKanji ? 
-                            `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(item.vocab.VocabFurigana)}</div>` : ''}
+                          ${
+                            item.vocab.VocabFurigana &&
+                            item.vocab.VocabFurigana !== item.vocab.VocabKanji
+                              ? `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(item.vocab.VocabFurigana)}</div>`
+                              : ''
+                          }
                           
                           <div class="text-sm mb-2">${this.escapeHtml(item.vocab.VocabDefCN || '暂无释义')}</div>
                           
@@ -542,22 +572,32 @@ class OptionsManager {
                             <span>学习时间: ${new Date(item.learnedDate).toLocaleDateString()}</span>
                           </div>
                           
-                          ${item.card ? `
+                          ${
+                            item.card
+                              ? `
                             <div class="mt-2 text-xs text-muted-foreground">
                               <span>来源: ${this.escapeHtml(item.card.sourceTitle)}</span>
                               ${item.card.sentence ? ` • 句子: ${item.card.sentence}` : ''}
                             </div>
-                          ` : ''}
+                          `
+                              : ''
+                          }
                         </div>
                       </div>
                     </div>
-                  `).join('')}
+                  `
+                    )
+                    .join('')}
                 </div>
               </div>
-            `).join('')}
+            `
+              )
+              .join('')}
           </div>
 
-          ${totalLearnedWords === 0 ? `
+          ${
+            totalLearnedWords === 0
+              ? `
             <div class="text-center py-12 text-muted-foreground">
               <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -567,14 +607,19 @@ class OptionsManager {
               <p class="text-lg font-medium mb-2">还没有学会任何词汇</p>
               <p class="text-sm">在 Netflix 上观看日语内容时按快捷键开始学习吧！</p>
             </div>
-          ` : ''}
+          `
+              : ''
+          }
         </div>
       `
 
       // 添加事件监听器
-      document.getElementById('export-learned-words')?.addEventListener('click', () => this.exportToAnki())
-      document.getElementById('clear-learned-words')?.addEventListener('click', () => this.clearAllCards())
-
+      document
+        .getElementById('export-learned-words')
+        ?.addEventListener('click', () => this.exportToAnki())
+      document
+        .getElementById('clear-learned-words')
+        ?.addEventListener('click', () => this.clearAllCards())
     } catch (error) {
       console.error('渲染已学词汇失败:', error)
       this.mainContent.innerHTML = `
@@ -590,7 +635,7 @@ class OptionsManager {
     try {
       const result = await chrome.storage.local.get(['savedCards'])
       const savedCards = result.savedCards || []
-      
+
       if (savedCards.length === 0) {
         this.showNotification('没有卡片可导出', 'error')
         return
@@ -656,7 +701,10 @@ class OptionsManager {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  private showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success'): void {
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'success'
+  ): void {
     let bgColor: string
     switch (type) {
       case 'error':
