@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Immersive Memorize",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Learn Japanese from Netflix by creating contextual flashcards from subtitles.",
   "permissions": ["storage", "activeTab", "scripting"],
   "host_permissions": ["*://*.netflix.com/*"],
@@ -24,7 +24,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["dict/kuromoji/*"],
+      "resources": ["dict/*"],
       "matches": ["<all_urls>"]
     }
   ]
