@@ -34,7 +34,7 @@ class ImmersiveMemorize {
 
       // 加载已学词汇 (lemmas)
       const savedCards = result.savedCards || []
-      this.learnedWords = new Set(savedCards.map(card => card.word)) // Assuming card.word stores the lemma
+      this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word)) // Assuming card.word stores the lemma
 
       // 初始化 SubtitleProcessor
       this.subtitleProcessor = new SubtitleProcessor(this.vocabLibraryManager, this.learnedWords, this.debugMode)
@@ -81,7 +81,7 @@ class ImmersiveMemorize {
 
       if (changes.savedCards) {
         const savedCards = changes.savedCards.newValue || [];
-        this.learnedWords = new Set(savedCards.map(card => card.word));
+        this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word));
         this.subtitleProcessor?.setLearnedWords(this.learnedWords);
         needsRefresh = true;
 

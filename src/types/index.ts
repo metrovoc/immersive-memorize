@@ -1,4 +1,6 @@
-export type { Word } from '@/lib/japanese-analyzer';
+import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer';
+
+export type Word = AnalyzerWord;
 
 export interface FlashCard {
   id: number;
