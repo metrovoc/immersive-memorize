@@ -203,25 +203,6 @@ class OptionsManager {
             <label for="debug-checkbox" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">启用调试模式（在控制台显示详细日志）</label>
           </div>
         </div>
-
-        <!-- 导出管理 -->
-        <div class="bg-card rounded-lg border p-6">
-          <h3 class="text-lg font-semibold mb-4">数据管理</h3>
-          <div class="flex gap-3">
-            <button id="export-cards-btn" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">
-              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              导出 Anki CSV
-            </button>
-            <button id="clear-cards-btn" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground text-destructive h-10 px-4 py-2">
-              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              清空所有卡片
-            </button>
-          </div>
-        </div>
       </div>
     `
 
@@ -233,13 +214,6 @@ class OptionsManager {
       }
       this.renderView()
     })
-
-    document
-      .getElementById('export-cards-btn')
-      ?.addEventListener('click', () => this.exportToAnki())
-    document
-      .getElementById('clear-cards-btn')
-      ?.addEventListener('click', () => this.clearAllCards())
   }
 
   private renderLibraryDetail(): void {
