@@ -115,16 +115,46 @@ class ImmersiveMemorize {
     })
   }
 
-  private refreshCurrentSubtitles(): void {
-    // 清除所有处理标记并重新扫描
-    const subtitleContainers = document.querySelectorAll<HTMLElement>(
+  private async refreshCurrentSubtitles(): Promise<void> {
+    const subtitleContainers = Array.from(document.querySelectorAll<HTMLElement>(
       '.player-timedtext-text-container, ' + '.ltr-1472gpj, ' + '[data-uia="player-caption-text"]'
-    )
+    ))
 
-    subtitleContainers.forEach(container => {
-      container.dataset.imProcessed = '' // Reset the flag
-      this.processSubtitleContainer(container)
-    })
+    if (subtitleContainers.length === 0) return
+
+    // 统一清除所有高亮（只执行一次）
+    this.clearAllHighlights()
+    this.currentTargetWord = null
+    this.currentTargetElement = null
+
+    // 按优先级处理container
+    for (const container of subtitleContainers) {
+      const text = container.innerText?.trim()
+      if (!text) continue
+
+      // 重置处理标记
+      container.dataset.imProcessed = ''
+      
+      // 尝试处理这个container
+      const targetWord = await this.subtitleProcessor?.processAndHighlight(container)
+      
+      if (targetWord) {
+        // 找到目标词汇，设置状态并停止处理
+        this.currentTargetWord = targetWord
+        this.currentTargetElement = document.querySelector('.im-current-target')
+        container.dataset.imProcessed = 'true'
+        
+        if (this.debugMode) {
+          console.log(`[Immersive Memorize] 当前目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`)
+        }
+        return // 关键：找到就停止，避免被后续container覆盖
+      }
+    }
+
+    // 如果所有container都没有找到目标词汇
+    if (this.debugMode) {
+      console.log('[Immersive Memorize] 当前字幕无未学词汇')
+    }
   }
 
   private startSubtitleObserver(): void {
@@ -142,16 +172,10 @@ class ImmersiveMemorize {
               const element = node as HTMLElement
 
               // Check if the added element itself is a subtitle container or if it contains one.
-              const containers = element.matches(subtitleSelectors)
-                ? [element]
-                : Array.from(element.querySelectorAll<HTMLElement>(subtitleSelectors))
-
-              containers.forEach(container => {
-                if (!container.dataset.imProcessed) {
-                  this.processSubtitleContainer(container)
-                  container.dataset.imProcessed = 'true'
-                }
-              })
+              if (element.matches(subtitleSelectors) || element.querySelector(subtitleSelectors)) {
+                // 有新的字幕容器出现，统一处理所有容器避免竞态
+                this.refreshCurrentSubtitles()
+              }
             }
           })
         }
@@ -176,12 +200,7 @@ class ImmersiveMemorize {
           subtree: true, // Subtree is needed as subtitles might be added nested inside the parent
         })
         // Also process any subtitles that might already be on the page
-        document.querySelectorAll<HTMLElement>(subtitleSelectors).forEach(container => {
-          if (!container.dataset.imProcessed) {
-            this.processSubtitleContainer(container)
-            container.dataset.imProcessed = 'true'
-          }
-        })
+        this.refreshCurrentSubtitles()
       } else {
         // If not found, fallback to observing the body, but with a delay to allow video players to load.
         // This is a fallback and less efficient.
@@ -204,8 +223,8 @@ class ImmersiveMemorize {
   private async processSubtitleContainer(container: HTMLElement): Promise<void> {
     if (!container || !this.subtitleProcessor) return
 
-    // 清除之前的高亮
-    this.clearAllHighlights()
+    // 移除内部的清除逻辑，改为在refreshCurrentSubtitles中统一处理
+    // 避免多container竞态问题
 
     this.currentTargetWord = await this.subtitleProcessor.processAndHighlight(container)
     this.currentTargetElement = document.querySelector('.im-current-target')
