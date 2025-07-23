@@ -1,12 +1,15 @@
+export type { Word } from '@/lib/japanese-analyzer';
+
 export interface FlashCard {
-  id: number
-  word: string
-  sentence: string
-  timestamp: number
-  screenshot: string
-  sourceTitle: string
-  createdAt: string
+  id: number;
+  word: string; // This should be the lemma of the word
+  sentence: string;
+  timestamp: number;
+  screenshot: string;
+  sourceTitle: string;
+  createdAt: string;
 }
+
 
 export interface VocabEntry {
   VocabKanji: string
