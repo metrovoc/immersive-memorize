@@ -5,7 +5,6 @@ import { SubtitleProcessor } from './subtitle-processor'
 class ImmersiveMemorize {
   private vocabLibraryManager: VocabLibraryManager
   private subtitleProcessor: SubtitleProcessor | null = null
-  private activeWordlist: string[] = [] // This will be removed later, kept for now
   private learnedWords: Set<string> = new Set()
   private currentTargetWord: Word | null = null
   private currentTargetElement: HTMLElement | null = null
@@ -49,7 +48,8 @@ class ImmersiveMemorize {
 
         console.log(`[Immersive Memorize] 当前词库: ${selectedLibrary?.name || '未选择'}`)
         console.log(`[Immersive Memorize] 激活等级: ${enabledLevels.join(', ')}`)
-        console.log(`[Immersive Memorize] 已加载 ${this.activeWordlist.length} 个词汇`)
+        const activeWordlist = await this.vocabLibraryManager.getActiveWordlist()
+        console.log(`[Immersive Memorize] 已加载 ${activeWordlist.length} 个词汇`)
         console.log(`[Immersive Memorize] 已学 ${this.learnedWords.size} 个词汇`)
         console.log(`[Immersive Memorize] 捕获快捷键: ${this.captureHotkey.toUpperCase()}`)
         console.log(`[Immersive Memorize] 顺序学习模式：每次仅显示一个生词`)
@@ -71,7 +71,7 @@ class ImmersiveMemorize {
 
       if (changes.vocabLibrarySettings) {
         await this.vocabLibraryManager.init();
-        this.subtitleProcessor?.updateWordLists();
+        await this.subtitleProcessor?.updateWordLists();
         needsRefresh = true;
 
         if (this.debugMode) {
@@ -303,6 +303,10 @@ class ImmersiveMemorize {
 
       const sourceTitle = document.title.replace(' - Netflix', '') || 'Unknown'
 
+      // 获取词汇的详细信息
+      const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
+      const vocabEntry = selectedLibrary?.data.find(entry => entry.VocabKanji === lemma)
+
       const cardData: FlashCard = {
         id: Date.now(),
         word: lemma, // <-- IMPORTANT: Save the lemma
@@ -311,6 +315,9 @@ class ImmersiveMemorize {
         screenshot: screenshot,
         sourceTitle: sourceTitle,
         createdAt: new Date().toISOString(),
+        level: vocabEntry?.Level,
+        definition: vocabEntry?.VocabDefCN,
+        reading: vocabEntry?.VocabFurigana,
       }
 
       const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
@@ -323,8 +330,8 @@ class ImmersiveMemorize {
       this.learnedWords.add(lemma)
       this.subtitleProcessor?.setLearnedWords(this.learnedWords);
 
-      // 更新词汇库中的学习进度
-      await this.updateLearningProgress(word)
+      // 更新词汇库中的学习进度（从记忆卡片推导）
+      await this.vocabLibraryManager.updateProgressFromCards()
 
       if (this.debugMode) {
         console.log(`[Immersive Memorize] 已保存卡片:`, cardData)
@@ -348,25 +355,6 @@ class ImmersiveMemorize {
     }
   }
 
-  private async updateLearningProgress(word: Word): Promise<void> {
-    try {
-      const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
-      if (!selectedLibrary) return
-
-      // Find the vocab entry by lemma
-      const vocabEntry = selectedLibrary.data.find(entry => entry.VocabKanji === word.lemma)
-      if (!vocabEntry) return
-
-      // Update the library with the learned lemma
-      await this.vocabLibraryManager.markWordAsLearned(word.lemma, vocabEntry.Level)
-
-      if (this.debugMode) {
-        console.log(`[Immersive Memorize] 更新学习进度: ${word.lemma} (${vocabEntry.Level})`)
-      }
-    } catch (error) {
-      console.error('[Immersive Memorize] 更新学习进度失败:', error)
-    }
-  }
 
   private async captureVideoFrame(videoElement: HTMLVideoElement | null): Promise<string> {
     if (!videoElement) return ''
