@@ -1,4 +1,5 @@
 const path = require('path');
+const zlib = require('zlib');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
@@ -51,8 +52,15 @@ module.exports = {
           to: 'icons'
         },
         {
-          from: 'dict',
-          to: 'dict'
+          from: 'dict/kuromoji/*.gz',
+          to: 'dict/kuromoji/[name]',
+          transform(content) {
+            return zlib.gunzipSync(content);
+          },
+        },
+        {
+          from: 'dict/jlpt.json',
+          to: 'dict/jlpt.json'
         },
         {
           from: 'src/popup/popup.html',
