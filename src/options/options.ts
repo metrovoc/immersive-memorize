@@ -22,9 +22,7 @@ class OptionsManager {
   }
 
   async init(): Promise<void> {
-    // 首先获取DOM元素
-    this.hotkeyInput = document.getElementById('hotkey-input') as HTMLInputElement
-    this.debugCheckbox = document.getElementById('debug-checkbox') as HTMLInputElement
+    // 首先获取容器元素
     this.notification = document.getElementById('notification')!
     this.mainContent = document.getElementById('main-content')!
     this.breadcrumbContainer = document.getElementById('breadcrumb')!
@@ -49,12 +47,8 @@ class OptionsManager {
   }
 
   private setupEventListeners(): void {
-    if (this.hotkeyInput) {
-      this.hotkeyInput.addEventListener('keydown', e => this.handleHotkeyInput(e))
-    }
-    if (this.debugCheckbox) {
-      this.debugCheckbox.addEventListener('change', () => this.saveSettings())
-    }
+    // 大部分DOM事件监听器现在在各个render方法中设置
+    // 这里只处理全局的、不依赖于特定DOM元素的监听器
   }
 
   private async loadSettings(): Promise<void> {
@@ -63,16 +57,8 @@ class OptionsManager {
         'captureHotkey',
         'debugMode',
       ])) as Partial<ExtensionSettings>
-      const hotkey = result.captureHotkey || 's'
-      const debugMode = result.debugMode !== false
 
-      if (this.hotkeyInput) {
-        this.hotkeyInput.value = hotkey.toUpperCase()
-      }
-      if (this.debugCheckbox) {
-        this.debugCheckbox.checked = debugMode
-      }
-
+      // 设置只加载到内存中，DOM操作在render方法中处理
       this.selectedLibrary = this.vocabLibraryManager.getSelectedLibrary() || null
     } catch (error) {
       console.error('加载设置失败:', error)
@@ -84,16 +70,14 @@ class OptionsManager {
 
   private async saveSettings(): Promise<void> {
     try {
-      const hotkey = this.hotkeyInput?.value?.toLowerCase() || 's'
       const debugMode = this.debugCheckbox?.checked || false
 
       await chrome.storage.local.set({
-        captureHotkey: hotkey,
         debugMode: debugMode,
       })
 
       if (this.notification) {
-        this.showNotification(`设置已保存，快捷键: ${hotkey.toUpperCase()}`, 'success')
+        this.showNotification('设置已保存', 'success')
       }
     } catch (error) {
       console.error('保存设置失败:', error)
@@ -189,8 +173,9 @@ class OptionsManager {
                 id="hotkey-input" 
                 maxlength="1" 
                 placeholder="S"
-                title="单击输入框，然后按下您想要的按键"
-                class="w-16 h-10 text-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono font-bold"
+                readonly
+                title="点击输入框，然后按下您想要的字母键"
+                class="w-16 h-10 text-center rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 font-mono font-bold cursor-pointer"
               >
             </div>
             <p class="text-sm text-muted-foreground">点击输入框，然后按下任意字母键作为快捷键</p>
@@ -208,7 +193,49 @@ class OptionsManager {
       </div>
     `
 
-    // 添加事件监听器
+    // 重新获取DOM元素并绑定事件监听器
+    this.hotkeyInput = document.getElementById('hotkey-input') as HTMLInputElement
+    this.debugCheckbox = document.getElementById('debug-checkbox') as HTMLInputElement
+
+    // 设置当前值
+    const result = chrome.storage.local.get(['captureHotkey', 'debugMode']).then(result => {
+      const hotkey = result.captureHotkey || 's'
+      const debugMode = result.debugMode !== false
+
+      if (this.hotkeyInput) {
+        this.hotkeyInput.value = hotkey.toUpperCase()
+      }
+      if (this.debugCheckbox) {
+        this.debugCheckbox.checked = debugMode
+      }
+    })
+
+    // 绑定快捷键输入框的事件监听器
+    if (this.hotkeyInput) {
+      // 移除readonly属性当获得焦点时，添加回来当失去焦点时
+      this.hotkeyInput.addEventListener('focus', () => {
+        this.hotkeyInput.removeAttribute('readonly')
+        this.hotkeyInput.placeholder = '按任意字母键...'
+      })
+
+      this.hotkeyInput.addEventListener('blur', () => {
+        this.hotkeyInput.setAttribute('readonly', 'true')
+        this.hotkeyInput.placeholder = 'S'
+      })
+
+      this.hotkeyInput.addEventListener('keydown', e => this.handleHotkeyInput(e))
+
+      // 防止右键菜单和其他输入
+      this.hotkeyInput.addEventListener('contextmenu', e => e.preventDefault())
+      this.hotkeyInput.addEventListener('input', e => e.preventDefault())
+    }
+
+    // 绑定调试选项的事件监听器
+    if (this.debugCheckbox) {
+      this.debugCheckbox.addEventListener('change', () => this.saveSettings())
+    }
+
+    // 添加词汇库卡片点击事件
     document.getElementById('vocab-library-card')?.addEventListener('click', () => {
       this.viewState = {
         mode: 'library-detail',
@@ -308,7 +335,7 @@ class OptionsManager {
                   
                   <div class="flex items-center gap-4">
                     <div class="text-right">
-                      <div class="text-sm font-medium">${Math.round(level.progress * level.totalWords / 100)}/${level.totalWords}</div>
+                      <div class="text-sm font-medium">${Math.round((level.progress * level.totalWords) / 100)}/${level.totalWords}</div>
                       <div class="text-xs text-muted-foreground">${Math.round(level.progress)}% 完成</div>
                     </div>
                     <button class="view-vocab-btn p-2 rounded-md hover:bg-accent transition-colors" data-level="${level.level}">
@@ -378,9 +405,11 @@ class OptionsManager {
     const vocabEntries = this.selectedLibrary.data.filter(
       entry => entry.Level === this.viewState.level
     )
-    
+
     // 获取该等级的已学词汇
-    const learnedCards = await this.vocabLibraryManager.getLearnedWordsByLevel(this.viewState.level!)
+    const learnedCards = await this.vocabLibraryManager.getLearnedWordsByLevel(
+      this.viewState.level!
+    )
     const learnedWords = new Set(learnedCards.map(card => card.word))
 
     const learnedCount = learnedWords.size
@@ -447,10 +476,10 @@ class OptionsManager {
           const vocabEntry: VocabEntry | undefined = this.selectedLibrary.data.find(
             entry => entry.VocabKanji === card.word
           )
-          
+
           // 使用卡片的等级信息，如果没有则从词库查找
           const level = card.level || vocabEntry?.Level
-          
+
           if (level) {
             if (!wordsByLevel[level]) {
               wordsByLevel[level] = []
@@ -461,7 +490,7 @@ class OptionsManager {
                 VocabKanji: card.word,
                 VocabFurigana: card.reading || '',
                 VocabDefCN: card.definition || '',
-                Level: level
+                Level: level,
               },
               card: card,
               learnedDate: card.createdAt || '未知',
@@ -715,14 +744,31 @@ class OptionsManager {
 
   private handleHotkeyInput(e: KeyboardEvent): void {
     e.preventDefault()
+    e.stopPropagation()
 
     // 只允许字母键
     if (e.key.length === 1 && /[a-zA-Z]/.test(e.key)) {
-      this.hotkeyInput.value = e.key.toUpperCase()
+      const newHotkey = e.key.toUpperCase()
+      this.hotkeyInput.value = newHotkey
       this.hotkeyInput.blur()
-      this.saveSettings()
+
+      // 立即保存设置
+      chrome.storage.local
+        .set({
+          captureHotkey: newHotkey.toLowerCase(),
+        })
+        .then(() => {
+          this.showNotification(`快捷键已设置为: ${newHotkey}`, 'success')
+        })
+        .catch(error => {
+          console.error('保存快捷键失败:', error)
+          this.showNotification('保存失败', 'error')
+        })
     } else if (e.key === 'Escape') {
       this.hotkeyInput.blur()
+    } else {
+      // 给用户反馈不支持的按键
+      this.showNotification('请按字母键 (A-Z)', 'warning')
     }
   }
 }
