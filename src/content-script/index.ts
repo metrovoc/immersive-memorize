@@ -1,10 +1,12 @@
 import type { FlashCard, ExtensionSettings, Word } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
 import { SubtitleProcessor } from './subtitle-processor'
+import { NetflixExtractor } from './netflix-extractor'
 
 class ImmersiveMemorize {
   private vocabLibraryManager: VocabLibraryManager
   private subtitleProcessor: SubtitleProcessor | null = null
+  private netflixExtractor: NetflixExtractor | null = null
   private learnedWords: Set<string> = new Set()
   private currentTargetWord: Word | null = null
   private currentTargetElement: HTMLElement | null = null
@@ -37,6 +39,9 @@ class ImmersiveMemorize {
 
       // 初始化 SubtitleProcessor
       this.subtitleProcessor = new SubtitleProcessor(this.vocabLibraryManager, this.learnedWords, this.debugMode)
+
+      // 初始化 NetflixExtractor
+      this.netflixExtractor = new NetflixExtractor(this.debugMode)
 
 
       if (this.debugMode) {
@@ -301,7 +306,20 @@ class ImmersiveMemorize {
 
       const screenshot = await this.captureVideoFrame(videoElement)
 
-      const sourceTitle = document.title.replace(' - Netflix', '') || 'Unknown'
+      // 使用 NetflixExtractor 获取详细的页面信息
+      let sourceTitle = 'Unknown'
+      let netflixInfo = null
+      if (this.netflixExtractor) {
+        netflixInfo = this.netflixExtractor.extractNetflixInfo()
+        sourceTitle = netflixInfo.fullTitle
+        
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] 提取的Netflix信息:', netflixInfo)
+        }
+      } else {
+        // 退回到原来的方法
+        sourceTitle = document.title.replace(' - Netflix', '') || 'Unknown'
+      }
 
       // 获取词汇的详细信息
       const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
@@ -318,6 +336,11 @@ class ImmersiveMemorize {
         level: vocabEntry?.Level,
         definition: vocabEntry?.VocabDefCN,
         reading: vocabEntry?.VocabFurigana,
+        // 保存详细的Netflix信息
+        showTitle: netflixInfo?.showTitle,
+        seasonNumber: netflixInfo?.seasonNumber,
+        episodeNumber: netflixInfo?.episodeNumber,
+        episodeTitle: netflixInfo?.episodeTitle,
       }
 
       const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
