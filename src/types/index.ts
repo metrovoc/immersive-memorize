@@ -10,6 +10,9 @@ export interface FlashCard {
   screenshot: string;
   sourceTitle: string;
   createdAt: string;
+  level?: string; // JLPT level (N5, N4, N3, N2, N1)
+  definition?: string; // Word definition
+  reading?: string; // Word reading (furigana)
 }
 
 
@@ -37,7 +40,6 @@ export interface LevelProgress {
   level: string
   enabled: boolean
   totalWords: number
-  learnedWords: string[]
   progress: number
 }
 
