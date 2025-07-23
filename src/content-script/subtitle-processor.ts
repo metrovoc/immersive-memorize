@@ -94,6 +94,14 @@ export class SubtitleProcessor {
   }
 
   private highlightWord(container: HTMLElement, wordToHighlight: Word): void {
+    // Security check: If there is already a highlight, do not process again
+    if (container.querySelector('.im-highlight')) {
+      if (this.debugMode) {
+        console.log('[SubtitleProcessor] Highlight already exists, skipping.');
+      }
+      return;
+    }
+    
     const surfaceForm = wordToHighlight.word;
     const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
     let node;
