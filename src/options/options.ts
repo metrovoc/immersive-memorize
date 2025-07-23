@@ -557,7 +557,7 @@ class OptionsManager {
                   ${wordsByLevel[level]
                     .map(
                       item => `
-                    <div class="vocab-card bg-card rounded-lg border p-4 hover:bg-accent/50 transition-colors">
+                    <div class="vocab-card bg-card rounded-lg border p-4 hover:bg-accent/50 transition-colors group">
                       <div class="flex items-start justify-between">
                         <div class="flex-1">
                           <div class="flex items-center gap-3 mb-2">
@@ -593,6 +593,15 @@ class OptionsManager {
                               : ''
                           }
                         </div>
+                        <button 
+                          class="delete-learned-card-btn opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center rounded-md text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8" 
+                          data-card-id="${item.card.id}"
+                          title="删除卡片"
+                        >
+                          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
                       </div>
                     </div>
                   `
@@ -630,6 +639,15 @@ class OptionsManager {
       document
         .getElementById('clear-learned-words')
         ?.addEventListener('click', () => this.clearAllCards())
+      
+      // 为所有单个删除按钮添加事件监听器
+      this.mainContent.querySelectorAll('.delete-learned-card-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.stopPropagation()
+          const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
+          await this.deleteLearnedCard(cardId)
+        })
+      })
     } catch (error) {
       console.error('渲染已学词汇失败:', error)
       this.mainContent.innerHTML = `
@@ -691,6 +709,29 @@ class OptionsManager {
       } catch (error) {
         console.error('清空失败:', error)
         this.showNotification('清空失败', 'error')
+      }
+    }
+  }
+
+  private async deleteLearnedCard(cardId: number): Promise<void> {
+    if (confirm('确定要删除这张卡片吗？')) {
+      try {
+        const result = await chrome.storage.local.get(['savedCards'])
+        const savedCards = result.savedCards || []
+        
+        const updatedCards = savedCards.filter((card: any) => card.id !== cardId)
+        await chrome.storage.local.set({ savedCards: updatedCards })
+        
+        // 更新学习进度（从记忆卡片推导）
+        await this.vocabLibraryManager.updateProgressFromCards()
+        
+        // 重新渲染已学词汇页面
+        await this.renderLearnedWords()
+        
+        this.showNotification('卡片已删除', 'success')
+      } catch (error) {
+        console.error('删除卡片失败:', error)
+        this.showNotification('删除失败', 'error')
       }
     }
   }
