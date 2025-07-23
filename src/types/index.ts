@@ -13,6 +13,11 @@ export interface FlashCard {
   level?: string; // JLPT level (N5, N4, N3, N2, N1)
   definition?: string; // Word definition
   reading?: string; // Word reading (furigana)
+  // Netflix详细信息
+  showTitle?: string; // 剧集名称
+  seasonNumber?: string; // 季数
+  episodeNumber?: string; // 集数
+  episodeTitle?: string; // 集标题
 }
 
 
