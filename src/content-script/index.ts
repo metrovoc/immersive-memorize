@@ -1,11 +1,13 @@
-import type { FlashCard, ExtensionSettings } from '@/types'
+import type { FlashCard, ExtensionSettings, Word } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
+import { SubtitleProcessor } from './subtitle-processor'
 
 class ImmersiveMemorize {
   private vocabLibraryManager: VocabLibraryManager
-  private activeWordlist: string[] = []
+  private subtitleProcessor: SubtitleProcessor | null = null
+  private activeWordlist: string[] = [] // This will be removed later, kept for now
   private learnedWords: Set<string> = new Set()
-  private currentTargetWord: string | null = null
+  private currentTargetWord: Word | null = null
   private currentTargetElement: HTMLElement | null = null
   private observer: MutationObserver | null = null
   private captureHotkey: string = 's'
@@ -30,12 +32,13 @@ class ImmersiveMemorize {
       this.captureHotkey = result.captureHotkey || 's'
       this.debugMode = result.debugMode !== false
 
-      // 获取激活的词汇表
-      this.activeWordlist = this.vocabLibraryManager.getActiveWordlist()
-
-      // 加载已学词汇
+      // 加载已学词汇 (lemmas)
       const savedCards = result.savedCards || []
-      this.learnedWords = new Set(savedCards.map(card => card.word))
+      this.learnedWords = new Set(savedCards.map(card => card.word)) // Assuming card.word stores the lemma
+
+      // 初始化 SubtitleProcessor
+      this.subtitleProcessor = new SubtitleProcessor(this.vocabLibraryManager, this.learnedWords, this.debugMode)
+
 
       if (this.debugMode) {
         const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
@@ -64,32 +67,44 @@ class ImmersiveMemorize {
 
   private setupStorageListener(): void {
     chrome.storage.onChanged.addListener(async changes => {
+      let needsRefresh = false;
+
       if (changes.vocabLibrarySettings) {
-        // 重新加载词汇库设置
-        await this.vocabLibraryManager.init()
-        this.activeWordlist = this.vocabLibraryManager.getActiveWordlist()
+        await this.vocabLibraryManager.init();
+        this.subtitleProcessor?.updateWordLists();
+        needsRefresh = true;
 
         if (this.debugMode) {
-          console.log(
-            `[Immersive Memorize] 词汇表已更新，当前 ${this.activeWordlist.length} 个词汇`
-          )
+          console.log('[Immersive Memorize] 词汇表设置已更新，重新处理字幕。');
         }
+      }
 
-        // 重新扫描当前字幕
-        this.refreshCurrentSubtitles()
+      if (changes.savedCards) {
+        const savedCards = changes.savedCards.newValue || [];
+        this.learnedWords = new Set(savedCards.map(card => card.word));
+        this.subtitleProcessor?.setLearnedWords(this.learnedWords);
+        needsRefresh = true;
+
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] 已学词汇列表已更新，重新处理字幕。');
+        }
       }
 
       if (changes.captureHotkey) {
-        this.captureHotkey = changes.captureHotkey.newValue || 's'
+        this.captureHotkey = changes.captureHotkey.newValue || 's';
         if (this.debugMode) {
-          console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`)
+          console.log(`[Immersive Memorize] 快捷键已更新: ${this.captureHotkey.toUpperCase()}`);
         }
       }
 
       if (changes.debugMode) {
-        this.debugMode = changes.debugMode.newValue !== false
+        this.debugMode = changes.debugMode.newValue !== false;
       }
-    })
+
+      if (needsRefresh) {
+        this.refreshCurrentSubtitles();
+      }
+    });
   }
 
   private refreshCurrentSubtitles(): void {
@@ -99,8 +114,8 @@ class ImmersiveMemorize {
     )
 
     subtitleContainers.forEach(container => {
-      container.dataset.imProcessed = ''
-      this.highlightFirstUnlearnedWord(container)
+      container.dataset.imProcessed = '' // Reset the flag
+      this.processSubtitleContainer(container)
     })
   }
 
@@ -118,7 +133,7 @@ class ImmersiveMemorize {
 
           subtitleContainers.forEach(container => {
             if (!container.dataset.imProcessed) {
-              this.highlightFirstUnlearnedWord(container)
+              this.processSubtitleContainer(container)
               container.dataset.imProcessed = 'true'
             }
           })
@@ -133,109 +148,25 @@ class ImmersiveMemorize {
     })
   }
 
-  private highlightFirstUnlearnedWord(container: HTMLElement): void {
-    if (!container || this.activeWordlist.length === 0) return
+  private async processSubtitleContainer(container: HTMLElement): Promise<void> {
+    if (!container || !this.subtitleProcessor) return
 
     // 清除之前的高亮
     this.clearAllHighlights()
 
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT)
-
-    const textNodes: Text[] = []
-    let node: Node | null
-
-    while ((node = walker.nextNode())) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        textNodes.push(node as Text)
-      }
-    }
-
-    // 查找第一个未学的词汇
-    for (const textNode of textNodes) {
-      const text = textNode.textContent || ''
-
-      for (const word of this.activeWordlist) {
-        if (word && text.includes(word) && !this.learnedWords.has(word)) {
-          // 找到第一个未学词汇，高亮它
-          this.highlightSingleWord(textNode, word)
-          this.currentTargetWord = word
-
-          if (this.debugMode) {
-            console.log(`[Immersive Memorize] 当前目标词汇: ${word}`)
-          }
-
-          return // 只高亮第一个找到的词汇
-        }
-      }
-    }
-
-    // 如果没有找到未学词汇
-    this.currentTargetWord = null
-    this.currentTargetElement = null
+    this.currentTargetWord = await this.subtitleProcessor.processAndHighlight(container)
+    this.currentTargetElement = document.querySelector('.im-current-target');
 
     if (this.debugMode) {
-      console.log('[Immersive Memorize] 当前字幕无未学词汇')
+      if (this.currentTargetWord) {
+        console.log(`[Immersive Memorize] 当前目标词汇: ${this.currentTargetWord.word} (原形: ${this.currentTargetWord.lemma})`);
+      } else {
+        console.log('[Immersive Memorize] 当前字幕无未学词汇');
+      }
     }
   }
 
-  private highlightSingleWord(textNode: Text, word: string): void {
-    const text = textNode.textContent || ''
-    const wordIndex = text.indexOf(word)
-
-    if (wordIndex === -1) return
-
-    // 分割文本节点
-    const beforeText = text.substring(0, wordIndex)
-    const afterText = text.substring(wordIndex + word.length)
-
-    // 创建高亮元素
-    const highlightSpan = document.createElement('span')
-    highlightSpan.className = 'im-highlight im-current-target'
-    highlightSpan.textContent = word
-    highlightSpan.style.cssText = `
-      background-color: #ff9800 !important;
-      color: #000 !important;
-      padding: 2px 4px !important;
-      border-radius: 4px !important;
-      font-weight: bold !important;
-      border: 2px solid #f57c00 !important;
-      box-shadow: 0 0 8px rgba(255, 152, 0, 0.6) !important;
-      animation: pulse 2s infinite !important;
-    `
-
-    // 添加脉冲动画
-    if (!document.getElementById('im-target-styles')) {
-      const style = document.createElement('style')
-      style.id = 'im-target-styles'
-      style.textContent = `
-        @keyframes pulse {
-          0% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
-          50% { box-shadow: 0 0 15px rgba(255, 152, 0, 0.9); }
-          100% { box-shadow: 0 0 8px rgba(255, 152, 0, 0.6); }
-        }
-      `
-      document.head.appendChild(style)
-    }
-
-    const parent = textNode.parentNode!
-
-    // 插入分割后的内容
-    if (beforeText) {
-      parent.insertBefore(document.createTextNode(beforeText), textNode)
-    }
-
-    parent.insertBefore(highlightSpan, textNode)
-
-    if (afterText) {
-      parent.insertBefore(document.createTextNode(afterText), textNode)
-    }
-
-    // 移除原始文本节点
-    parent.removeChild(textNode)
-
-    // 设置当前目标元素
-    this.currentTargetElement = highlightSpan
-  }
+  
 
   private clearAllHighlights(): void {
     const highlights = document.querySelectorAll<HTMLElement>('.im-highlight')
@@ -286,11 +217,12 @@ class ImmersiveMemorize {
     if (!this.currentTargetWord || !this.currentTargetElement) return
 
     try {
-      const word = this.currentTargetWord
+      const word = this.currentTargetWord;
+      const lemma = word.lemma; // Use lemma as the unique identifier
 
-      // 检查是否已经学过这个词
-      if (this.learnedWords.has(word)) {
-        this.showNotification(`${word} 已存在`, 'warning')
+      // 检查是否已经学过这个词 (based on lemma)
+      if (this.learnedWords.has(lemma)) {
+        this.showNotification(`${lemma} 已存在`, 'warning')
         return
       }
 
@@ -302,14 +234,12 @@ class ImmersiveMemorize {
       if (sentenceElement) {
         const clonedElement = sentenceElement.cloneNode(true) as HTMLElement
 
-        // 1. 移除所有 style 属性，除了我们自己的高亮元素
+        // Clean up the sentence HTML for storage
         clonedElement.querySelectorAll('[style]').forEach(el => {
           if (!el.classList.contains('im-highlight')) {
             el.removeAttribute('style')
           }
         })
-
-        // 2. 移除所有 class，除了我们自己的
         clonedElement.querySelectorAll('[class]').forEach(el => {
           const classesToKeep = []
           for (const cls of el.classList) {
@@ -319,8 +249,6 @@ class ImmersiveMemorize {
           }
           el.className = classesToKeep.join(' ')
         })
-
-        // 3. 为 furigana 添加自定义 class 以便统一样式
         clonedElement.querySelectorAll('ruby').forEach(rubyEl => rubyEl.classList.add('im-ruby'))
         clonedElement.querySelectorAll('rt').forEach(rtEl => rtEl.classList.add('im-rt'))
         clonedElement.querySelectorAll('rb').forEach(rbEl => rbEl.classList.add('im-rb'))
@@ -337,7 +265,7 @@ class ImmersiveMemorize {
 
       const cardData: FlashCard = {
         id: Date.now(),
-        word: word,
+        word: lemma, // <-- IMPORTANT: Save the lemma
         sentence: sentence,
         timestamp: timestamp,
         screenshot: screenshot,
@@ -352,10 +280,17 @@ class ImmersiveMemorize {
       await chrome.storage.local.set({ savedCards: savedCards })
 
       // 立即添加到已学词汇集合
-      this.learnedWords.add(word)
+      this.learnedWords.add(lemma)
+      this.subtitleProcessor?.setLearnedWords(this.learnedWords);
 
       // 更新词汇库中的学习进度
       await this.updateLearningProgress(word)
+
+      if (this.debugMode) {
+        console.log(`[Immersive Memorize] 已保存卡片:`, cardData)
+      }
+
+      this.showNotification(`${word.word} ( ${lemma} ) 已学习`)
 
       // 清除当前高亮并寻找下一个词汇
       this.clearAllHighlights()
@@ -364,43 +299,29 @@ class ImmersiveMemorize {
 
       // 重新扫描当前字幕寻找下一个生词
       setTimeout(() => {
-        const subtitleContainers = document.querySelectorAll<HTMLElement>(
-          '.player-timedtext-text-container, ' +
-            '.ltr-1472gpj, ' +
-            '[data-uia="player-caption-text"]'
-        )
-
-        subtitleContainers.forEach(container => {
-          container.dataset.imProcessed = ''
-          this.highlightFirstUnlearnedWord(container)
-        })
+        this.refreshCurrentSubtitles()
       }, 100)
 
-      if (this.debugMode) {
-        console.log(`[Immersive Memorize] 已保存卡片:`, cardData)
-      }
-
-      this.showNotification(`${word} 已学习`)
     } catch (error) {
       console.error('[Immersive Memorize] 捕获数据失败:', error)
       this.showNotification('保存失败: ' + (error as Error).message, 'error')
     }
   }
 
-  private async updateLearningProgress(word: string): Promise<void> {
+  private async updateLearningProgress(word: Word): Promise<void> {
     try {
       const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary()
       if (!selectedLibrary) return
 
-      // 查找词汇所属的等级
-      const vocabEntry = selectedLibrary.data.find(entry => entry.VocabKanji === word)
+      // Find the vocab entry by lemma
+      const vocabEntry = selectedLibrary.data.find(entry => entry.VocabKanji === word.lemma)
       if (!vocabEntry) return
 
-      // 更新词汇库中的学习进度
-      await this.vocabLibraryManager.markWordAsLearned(word, vocabEntry.Level)
+      // Update the library with the learned lemma
+      await this.vocabLibraryManager.markWordAsLearned(word.lemma, vocabEntry.Level)
 
       if (this.debugMode) {
-        console.log(`[Immersive Memorize] 更新学习进度: ${word} (${vocabEntry.Level})`)
+        console.log(`[Immersive Memorize] 更新学习进度: ${word.lemma} (${vocabEntry.Level})`)
       }
     } catch (error) {
       console.error('[Immersive Memorize] 更新学习进度失败:', error)
