@@ -24,8 +24,8 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["dict/*"],
-      "matches": ["*://*.netflix.com/*"]
+      "resources": ["dict/kuromoji/*"],
+      "matches": ["<all_urls>"]
     }
   ]
 }
