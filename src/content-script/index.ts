@@ -14,6 +14,7 @@ class ImmersiveMemorize {
   private observer: MutationObserver | null = null
   private captureHotkey: string = 's'
   private debugMode: boolean = true
+  private enableScreenshot: boolean = false // 新增：截图功能开关，默认关闭
 
   constructor() {
     this.vocabLibraryManager = new VocabLibraryManager()
@@ -28,11 +29,13 @@ class ImmersiveMemorize {
       const result = (await chrome.storage.local.get([
         'captureHotkey',
         'debugMode',
+        'enableScreenshot',
         'savedCards',
       ])) as Partial<ExtensionSettings>
 
       this.captureHotkey = result.captureHotkey || 's'
       this.debugMode = result.debugMode !== false
+      this.enableScreenshot = result.enableScreenshot || false // 默认关闭
 
       // 加载已学词汇 (lemmas)
       const savedCards = result.savedCards || []
@@ -117,9 +120,11 @@ class ImmersiveMemorize {
   }
 
   private async refreshCurrentSubtitles(): Promise<void> {
-    const subtitleContainers = Array.from(document.querySelectorAll<HTMLElement>(
-      '.player-timedtext-text-container, ' + '.ltr-1472gpj, ' + '[data-uia="player-caption-text"]'
-    ))
+    const subtitleContainers = Array.from(
+      document.querySelectorAll<HTMLElement>(
+        '.player-timedtext-text-container, ' + '.ltr-1472gpj, ' + '[data-uia="player-caption-text"]'
+      )
+    )
 
     if (subtitleContainers.length === 0) return
 
@@ -135,18 +140,20 @@ class ImmersiveMemorize {
 
       // 重置处理标记
       container.dataset.imProcessed = ''
-      
+
       // 尝试处理这个container
       const targetWord = await this.subtitleProcessor?.processAndHighlight(container)
-      
+
       if (targetWord) {
         // 找到目标词汇，设置状态并停止处理
         this.currentTargetWord = targetWord
         this.currentTargetElement = document.querySelector('.im-current-target')
         container.dataset.imProcessed = 'true'
-        
+
         if (this.debugMode) {
-          console.log(`[Immersive Memorize] 当前目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`)
+          console.log(
+            `[Immersive Memorize] 当前目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`
+          )
         }
         return // 关键：找到就停止，避免被后续container覆盖
       }
@@ -309,7 +316,7 @@ class ImmersiveMemorize {
         const textParser = new SubtitleTextParser()
         const parsedText = textParser.parse(sentenceElement)
         sentence = parsedText.displayHTML
-        
+
         if (this.debugMode) {
           console.log('[Immersive Memorize] Captured sentence HTML:', sentence)
           console.log('[Immersive Memorize] Furigana mappings:', parsedText.furiganaMap)
@@ -319,7 +326,18 @@ class ImmersiveMemorize {
       const videoElement = document.querySelector<HTMLVideoElement>('video')
       const timestamp = videoElement ? Math.floor(videoElement.currentTime) : 0
 
-      const screenshot = await this.captureVideoFrame(videoElement)
+      // 根据截图开关决定是否进行截图
+      let screenshot = ''
+      if (this.enableScreenshot) {
+        screenshot = await this.captureVideoFrame(videoElement)
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] 截图功能已启用，截图结果长度:', screenshot.length)
+        }
+      } else {
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] 截图功能已关闭，跳过截图')
+        }
+      }
 
       // 使用 NetflixExtractor 获取详细的页面信息
       let sourceTitle = 'Unknown'
@@ -395,19 +413,146 @@ class ImmersiveMemorize {
   private async captureVideoFrame(videoElement: HTMLVideoElement | null): Promise<string> {
     if (!videoElement) return ''
 
+    // 方法1: 尝试Tab Capture API (主要方案)
+    try {
+      const tabCaptureResult = await this.tryTabCapture()
+      if (tabCaptureResult) {
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] Tab Capture API 截图成功')
+        }
+        return tabCaptureResult
+      }
+    } catch (error) {
+      if (this.debugMode) {
+        console.log('[Immersive Memorize] Tab Capture API 失败，尝试备用方案:', error)
+      }
+    }
+
+    // 方法2: 传统Canvas API (备用方案)
     try {
       const canvas = document.createElement('canvas')
-      canvas.width = videoElement.videoWidth
-      canvas.height = videoElement.videoHeight
+      canvas.width = videoElement.videoWidth || 1920
+      canvas.height = videoElement.videoHeight || 1080
 
       const ctx = canvas.getContext('2d')!
       ctx.drawImage(videoElement, 0, 0)
 
-      return canvas.toDataURL('image/png')
+      const dataURL = canvas.toDataURL('image/png')
+
+      // 检测是否为黑屏(DRM保护)
+      if (await this.isBlackScreen(dataURL)) {
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] 检测到DRM保护(黑屏)，Canvas API失败')
+        }
+        return '' // 返回空字符串表示失败
+      }
+
+      if (this.debugMode) {
+        console.log('[Immersive Memorize] Canvas API 截图成功')
+      }
+      return dataURL
     } catch (error) {
-      console.error('[Immersive Memorize] 截图失败:', error)
+      console.error('[Immersive Memorize] Canvas API 截图失败:', error)
       return ''
     }
+  }
+
+  private async tryTabCapture(): Promise<string | null> {
+    return new Promise(resolve => {
+      if (!chrome.tabCapture) {
+        resolve(null)
+        return
+      }
+
+      chrome.tabCapture.capture(
+        {
+          video: true,
+          audio: false,
+          videoConstraints: { mandatory: { maxWidth: 1920, maxHeight: 1080 } },
+        },
+        stream => {
+          if (!stream) {
+            resolve(null)
+            return
+          }
+
+          this.streamToScreenshot(stream)
+            .then(base64 => resolve(base64))
+            .catch(() => resolve(null))
+        }
+      )
+    })
+  }
+
+  private async streamToScreenshot(stream: MediaStream): Promise<string> {
+    const video = document.createElement('video')
+    video.srcObject = stream
+    video.muted = true
+
+    return new Promise((resolve, reject) => {
+      video.onloadedmetadata = () => {
+        video
+          .play()
+          .then(() => {
+            // 等待几帧确保视频开始播放
+            setTimeout(() => {
+              try {
+                const canvas = document.createElement('canvas')
+                canvas.width = video.videoWidth
+                canvas.height = video.videoHeight
+
+                const ctx = canvas.getContext('2d')!
+                ctx.drawImage(video, 0, 0)
+
+                // 清理资源
+                stream.getTracks().forEach(track => track.stop())
+                video.srcObject = null
+
+                resolve(canvas.toDataURL('image/png'))
+              } catch (error) {
+                stream.getTracks().forEach(track => track.stop())
+                video.srcObject = null
+                reject(error)
+              }
+            }, 100)
+          })
+          .catch(reject)
+      }
+    })
+  }
+
+  private async isBlackScreen(dataURL: string): Promise<boolean> {
+    return new Promise(resolve => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.min(100, img.width) // 采样检测，提高性能
+        canvas.height = Math.min(100, img.height)
+
+        const ctx = canvas.getContext('2d')!
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+        const data = imageData.data
+
+        // 检测是否大部分像素都是黑色
+        let blackPixels = 0
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i]
+          const g = data[i + 1]
+          const b = data[i + 2]
+          if (r < 10 && g < 10 && b < 10) {
+            // 接近黑色
+            blackPixels++
+          }
+        }
+
+        const totalPixels = data.length / 4
+        const blackRatio = blackPixels / totalPixels
+        resolve(blackRatio > 0.95) // 如果95%以上是黑色，认为是黑屏
+      }
+      img.src = dataURL
+    })
   }
 
   private showNotification(
