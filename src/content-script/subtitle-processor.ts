@@ -1,18 +1,22 @@
 
 import { analyze, Word } from '@/lib/japanese-analyzer';
 import { VocabLibraryManager } from '@/lib/vocab-library';
+import { SubtitleTextParser, type FuriganaMapping, type ParsedSubtitleText } from './subtitle-text-parser';
+import type { VocabEntry } from '@/types';
 
 export class SubtitleProcessor {
   private vocabLibraryManager: VocabLibraryManager;
   private learnedWords: Set<string>;
   private activeWordLemmas: Set<string>;
   private debugMode: boolean;
+  private textParser: SubtitleTextParser;
 
   constructor(vocabLibraryManager: VocabLibraryManager, learnedWords: Set<string>, debugMode: boolean = true) {
     this.vocabLibraryManager = vocabLibraryManager;
     this.learnedWords = learnedWords;
     this.debugMode = debugMode;
     this.activeWordLemmas = new Set(); // Initialize explicitly
+    this.textParser = new SubtitleTextParser();
     this.updateWordLists(); // Then call the method that sets it
   }
 
@@ -30,18 +34,27 @@ export class SubtitleProcessor {
   }
 
   public async processAndHighlight(container: HTMLElement): Promise<Word | null> {
-    // The text content of the container might be split across multiple elements (e.g., with <br> or ruby tags)
-    // innerText gives a reasonable representation of what the user sees.
-    const text = container.innerText;
-    if (!text || text.trim() === '') return null;
-
     try {
-      const analyzedWords = await analyze(text);
+      // 使用新的解析器处理字幕，提取纯文本和Furigana映射
+      const parsedText = this.textParser.parse(container);
+      
+      if (!parsedText.cleanText || parsedText.cleanText.trim() === '') {
+        return null;
+      }
+
+      if (this.debugMode) {
+        console.log('[SubtitleProcessor] Parsed text:', parsedText.cleanText);
+        console.log('[SubtitleProcessor] Furigana mappings:', parsedText.furiganaMap);
+      }
+
+      // 使用纯文本进行日语分析
+      const analyzedWords = await analyze(parsedText.cleanText);
       if (this.debugMode) {
         console.log('[SubtitleProcessor] Analyzed words:', analyzedWords.map(w => w.word).join(' | '));
       }
 
-      const targetWord = this.findFirstTargetWord(analyzedWords);
+      // 寻找目标词汇，包含双重验证
+      const targetWord = this.findFirstTargetWord(analyzedWords, parsedText.furiganaMap);
 
       if (targetWord) {
         this.highlightWord(container, targetWord);
@@ -55,7 +68,7 @@ export class SubtitleProcessor {
     }
   }
 
-  private findFirstTargetWord(analyzedWords: Word[]): Word | null {
+  private findFirstTargetWord(analyzedWords: Word[], furiganaMap: FuriganaMapping[]): Word | null {
     for (const word of analyzedWords) {
       const lemma = word.lemma;
 
@@ -63,7 +76,12 @@ export class SubtitleProcessor {
       // 1. It's a learnable part of speech.
       // 2. Its lemma is in our active vocabulary list.
       // 3. Its lemma has not been learned yet.
-      if (this.isLearnable(word) && this.activeWordLemmas.has(lemma) && !this.learnedWords.has(lemma)) {
+      // 4. 通过双重验证（如果有Furigana的话）
+      if (this.isLearnable(word) && 
+          this.activeWordLemmas.has(lemma) && 
+          !this.learnedWords.has(lemma) &&
+          this.validateWordWithFurigana(word, furiganaMap)) {
+        
         if (this.debugMode) {
           console.log(`[SubtitleProcessor] Found target word: ${word.word} (lemma: ${lemma})`);
         }
@@ -91,6 +109,122 @@ export class SubtitleProcessor {
         return false;
     }
     return true;
+  }
+
+  /**
+   * 验证词汇与Furigana的一致性
+   * 实现双重验证机制，防止专有名词误识别
+   */
+  private validateWordWithFurigana(word: Word, furiganaMap: FuriganaMapping[]): boolean {
+    // 查找该词汇对应的Furigana
+    const mapping = this.textParser.findFuriganaForWord(word, furiganaMap);
+    
+    if (!mapping) {
+      // 无Furigana时，按原逻辑处理（可能是平假名词汇或无Ruby标记）
+      return true;
+    }
+
+    // 从词典获取标准读音
+    const vocabEntry = this.findVocabEntry(word.lemma);
+    if (!vocabEntry || !vocabEntry.VocabFurigana) {
+      // 词典中找不到或无读音信息，可能是专有名词，拒绝学习
+      if (this.debugMode) {
+        console.log(`[SubtitleProcessor] Rejecting word ${word.word}: not found in vocab or no reading`);
+      }
+      return false;
+    }
+
+    // 比较Furigana与词典读音
+    const isMatched = this.isReadingMatched(mapping.furigana, vocabEntry.VocabFurigana);
+    
+    if (this.debugMode) {
+      console.log(`[SubtitleProcessor] Reading validation for ${word.word}:`);
+      console.log(`  Context Furigana: ${mapping.furigana}`);
+      console.log(`  Dictionary reading: ${vocabEntry.VocabFurigana}`);
+      console.log(`  Match result: ${isMatched}`);
+    }
+
+    return isMatched;
+  }
+
+  /**
+   * 从词汇库中查找词汇条目
+   */
+  private findVocabEntry(lemma: string): VocabEntry | null {
+    const selectedLibrary = this.vocabLibraryManager.getSelectedLibrary();
+    if (!selectedLibrary) return null;
+
+    return selectedLibrary.data.find(entry => entry.VocabKanji === lemma) || null;
+  }
+
+  /**
+   * 比较两个读音是否匹配
+   * 处理平假名/片假名转换、长音符等差异
+   */
+  private isReadingMatched(contextReading: string, dictReading: string): boolean {
+    const normalize = (reading: string): string => {
+      return reading
+        .replace(/ー/g, '') // 移除长音符
+        .replace(/ッ/g, 'つ') // 统一促音
+        .replace(/[ァ-ヴ]/g, (match) => { // 片假名转平假名
+          return String.fromCharCode(match.charCodeAt(0) - 0x60);
+        })
+        .normalize('NFC')
+        .toLowerCase();
+    };
+
+    const normalizedContext = normalize(contextReading);
+    const normalizedDict = normalize(dictReading);
+
+    // 精确匹配
+    if (normalizedContext === normalizedDict) {
+      return true;
+    }
+
+    // 部分匹配（处理词汇变形）
+    if (normalizedContext.includes(normalizedDict) || normalizedDict.includes(normalizedContext)) {
+      return true;
+    }
+
+    // 计算相似度（可选的容错机制）
+    const similarity = this.calculateReadingSimilarity(normalizedContext, normalizedDict);
+    return similarity > 0.8; // 80%相似度阈值
+  }
+
+  /**
+   * 计算读音相似度
+   */
+  private calculateReadingSimilarity(reading1: string, reading2: string): number {
+    const len1 = reading1.length;
+    const len2 = reading2.length;
+    
+    if (len1 === 0) return len2 === 0 ? 1 : 0;
+    if (len2 === 0) return 0;
+
+    // 简单的编辑距离算法
+    const matrix: number[][] = [];
+    
+    for (let i = 0; i <= len1; i++) {
+      matrix[i] = [i];
+    }
+    
+    for (let j = 0; j <= len2; j++) {
+      matrix[0][j] = j;
+    }
+    
+    for (let i = 1; i <= len1; i++) {
+      for (let j = 1; j <= len2; j++) {
+        const cost = reading1[i - 1] === reading2[j - 1] ? 0 : 1;
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j] + 1,      // 删除
+          matrix[i][j - 1] + 1,      // 插入
+          matrix[i - 1][j - 1] + cost // 替换
+        );
+      }
+    }
+    
+    const maxLen = Math.max(len1, len2);
+    return (maxLen - matrix[len1][len2]) / maxLen;
   }
 
   private highlightWord(container: HTMLElement, wordToHighlight: Word): void {
