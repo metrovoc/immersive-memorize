@@ -7,7 +7,8 @@ module.exports = {
   entry: {
     'content-script': './src/content-script/index.ts',
     'popup/popup': './src/popup/popup.ts',
-    'options/options': './src/options/options.ts'
+    'options/options': './src/options/options.ts',
+    'background': './src/background.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
