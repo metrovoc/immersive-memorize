@@ -38,11 +38,37 @@ export class CSVFormatter {
   }
 
   /**
-   * 获取默认导出选项
+   * 获取默认导出选项（对应原有的导出方式）
    */
   private getDefaultOptions(): CSVExportOptions {
     return {
-      format: CSVExportFormat.ANKI_HTML,
+      format: CSVExportFormat.ANKI_HTML, // 保持原有的默认格式
+      separator: ';',
+      includeScreenshots: true,
+      includeTimestamp: true,
+      includeSource: true
+    }
+  }
+
+  /**
+   * 根据字符串创建导出选项
+   */
+  static createOptionsFromFormat(formatString: string): CSVExportOptions {
+    let format: CSVExportFormat
+    switch (formatString) {
+      case 'plain-text':
+        format = CSVExportFormat.PLAIN_TEXT
+        break
+      case 'rich-text':
+        format = CSVExportFormat.RICH_TEXT
+        break
+      case 'anki-html':
+      default:
+        format = CSVExportFormat.ANKI_HTML
+    }
+
+    return {
+      format,
       separator: ';',
       includeScreenshots: true,
       includeTimestamp: true,
@@ -141,7 +167,8 @@ export class CSVFormatter {
     
     // 处理Ruby标签：保留rb内容，移除rt
     tempDiv.querySelectorAll('ruby').forEach(ruby => {
-      const rb = ruby.querySelector('rb') || ruby.querySelector('span:not(rt span)')
+      const rb = ruby.querySelector('rb') as HTMLElement || 
+                ruby.querySelector('span:not(rt span)') as HTMLElement
       if (rb) {
         const textNode = document.createTextNode(rb.textContent || '')
         ruby.parentNode?.replaceChild(textNode, ruby)
@@ -168,8 +195,9 @@ export class CSVFormatter {
     
     // 转换Ruby标签为Anki格式：汉字[读音]
     tempDiv.querySelectorAll('ruby').forEach(ruby => {
-      const rb = ruby.querySelector('rb') || ruby.querySelector('span:not(rt span)')
-      const rt = ruby.querySelector('rt')
+      const rb = ruby.querySelector('rb') as HTMLElement || 
+                ruby.querySelector('span:not(rt span)') as HTMLElement
+      const rt = ruby.querySelector('rt') as HTMLElement
       
       if (rb && rt) {
         const rbText = this.extractTextContent(rb)
@@ -188,7 +216,7 @@ export class CSVFormatter {
   }
 
   /**
-   * 清理富文本HTML
+   * 清理富文本HTML（保留Ruby结构和高亮样式）
    */
   private cleanRichTextHTML(htmlContent: string): string {
     if (!htmlContent) return ''
@@ -196,14 +224,13 @@ export class CSVFormatter {
     const tempDiv = document.createElement('div')
     tempDiv.innerHTML = htmlContent
     
-    // 移除内联样式
-    tempDiv.querySelectorAll('[style]').forEach(el => {
-      if (!el.classList.contains('im-highlight')) {
-        el.removeAttribute('style')
-      }
-    })
+    // 保留高亮标记和样式（RichHTML格式适合支持样式的系统）
+    // 不移除.im-highlight元素
     
-    // 清理类名，只保留im-开头的
+    // 保留内联样式（包括高亮样式）
+    // 不移除style属性
+    
+    // 清理类名，保留所有im-开头的类（包括高亮和Ruby）
     tempDiv.querySelectorAll('[class]').forEach(el => {
       const classesToKeep: string[] = []
       for (const cls of el.classList) {

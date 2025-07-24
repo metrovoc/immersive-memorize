@@ -59,6 +59,7 @@ export interface ExtensionSettings {
   debugMode: boolean
   savedCards: FlashCard[]
   vocabLibrarySettings: VocabLibrarySettings
+  csvExportFormat: 'plain-text' | 'anki-html' | 'rich-text' // CSV导出格式设置
 }
 
 export interface NotificationType {
