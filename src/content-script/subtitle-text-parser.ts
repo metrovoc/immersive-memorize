@@ -112,13 +112,13 @@ export class SubtitleTextParser {
   }
   
   /**
-   * 提取元素的纯文本内容，排除高亮标记
+   * 提取元素的纯文本内容，用于Furigana分析（移除高亮标记）
    */
   private extractTextContent(element: Element): string {
     // 克隆元素避免影响原DOM
     const clone = element.cloneNode(true) as HTMLElement
     
-    // 移除高亮元素，保留其文本内容
+    // 移除高亮元素，保留其文本内容（仅用于文本分析）
     const highlights = clone.querySelectorAll('.im-highlight')
     highlights.forEach(highlight => {
       const textNode = document.createTextNode(highlight.textContent || '')
@@ -129,13 +129,13 @@ export class SubtitleTextParser {
   }
   
   /**
-   * 从处理后的容器中获取纯文本
+   * 从处理后的容器中获取纯文本（用于日语分析）
    */
   private getCleanTextFromContainer(container: HTMLElement): string {
     // 移除所有rt标签
     container.querySelectorAll('rt').forEach(rt => rt.remove())
     
-    // 移除高亮标记，保留文本
+    // 移除高亮标记，保留文本（仅用于分析）
     const highlights = container.querySelectorAll('.im-highlight')
     highlights.forEach(highlight => {
       const textNode = document.createTextNode(highlight.textContent || '')
