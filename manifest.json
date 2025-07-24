@@ -7,7 +7,7 @@
   "background": {
     "service_worker": "background.js"
   },
-  "host_permissions": ["*://*.netflix.com/*"],
+  "host_permissions": ["*://*.netflix.com/*", "*://*/*"],
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "Immersive Memorize"
