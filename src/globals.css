@@ -68,11 +68,11 @@
 .im-rt {
   display: block;
   position: absolute;
-  bottom: 100%; /* Position furigana directly above the base text */
+  bottom: 90%; /* Position furigana directly above the base text */
   left: 50%;
   transform: translateX(-50%); /* Center the furigana */
-  font-size: 0.65em;
-  line-height: 0.8;
+  font-size: 0.6em;
+  line-height: 0.6;
   color: var(--muted-foreground);
   white-space: nowrap; /* Prevent furigana from wrapping */
 }
