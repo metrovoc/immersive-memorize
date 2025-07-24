@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (sender.tab && sender.tab.id) {
       chrome.tabs.captureVisibleTab(
         sender.tab.windowId,
-        { format: 'png' }, // Use lossless PNG format
+        { format: 'jpeg', quality: 90 }, // Use lossy JPEG format with high quality
         (dataUrl) => {
           if (chrome.runtime.lastError) {
             // If there's an error (e.g., user denies permission), log it and send back null
