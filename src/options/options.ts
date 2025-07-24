@@ -1,5 +1,12 @@
 import '../globals.css'
-import type { ExtensionSettings, VocabLibrary, LevelProgress, ViewState, VocabEntry, FlashCard } from '@/types'
+import type {
+  ExtensionSettings,
+  VocabLibrary,
+  LevelProgress,
+  ViewState,
+  VocabEntry,
+  FlashCard,
+} from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
 import { CSVFormatter, CSVExportFormat } from '@/lib/csv-formatter'
 
@@ -72,7 +79,8 @@ class OptionsManager {
   private async saveSettings(): Promise<void> {
     try {
       const debugMode = this.debugCheckbox?.checked || false
-      const enableScreenshot = (document.getElementById('screenshot-checkbox') as HTMLInputElement)?.checked || false
+      const enableScreenshot =
+        (document.getElementById('screenshot-checkbox') as HTMLInputElement)?.checked || false
       const csvFormatSelect = document.getElementById('csv-format-select') as HTMLSelectElement
       const csvExportFormat = csvFormatSelect?.value || 'anki-html'
 
@@ -94,12 +102,17 @@ class OptionsManager {
   }
 
   private initializeTooltip(): void {
-    const tooltipTrigger = document.querySelector('.screenshot-info-tooltip')
-    const tooltipContent = document.querySelector('.tooltip-content')
-    
+    this.setupTooltip('.screenshot-info-tooltip', '.tooltip-content')
+    this.setupTooltip('.csv-format-info-tooltip', '.csv-format-tooltip-content')
+  }
+
+  private setupTooltip(triggerSelector: string, contentSelector: string): void {
+    const tooltipTrigger = document.querySelector(triggerSelector)
+    const tooltipContent = document.querySelector(contentSelector)
+
     if (tooltipTrigger && tooltipContent) {
       let hoverTimeout: NodeJS.Timeout | null = null
-      
+
       // 鼠标进入时显示提示
       tooltipTrigger.addEventListener('mouseenter', () => {
         if (hoverTimeout) {
@@ -108,7 +121,7 @@ class OptionsManager {
         tooltipContent.classList.remove('opacity-0', 'invisible')
         tooltipContent.classList.add('opacity-100', 'visible')
       })
-      
+
       // 鼠标离开时延迟隐藏提示
       tooltipTrigger.addEventListener('mouseleave', () => {
         hoverTimeout = setTimeout(() => {
@@ -116,14 +129,14 @@ class OptionsManager {
           tooltipContent.classList.add('opacity-0', 'invisible')
         }, 150) // 150ms延迟，提供更好的用户体验
       })
-      
+
       // 鼠标在提示内容上时保持显示
       tooltipContent.addEventListener('mouseenter', () => {
         if (hoverTimeout) {
           clearTimeout(hoverTimeout)
         }
       })
-      
+
       tooltipContent.addEventListener('mouseleave', () => {
         tooltipContent.classList.remove('opacity-100', 'visible')
         tooltipContent.classList.add('opacity-0', 'invisible')
@@ -263,11 +276,18 @@ class OptionsManager {
                 <option value="plain-text">纯文本格式</option>
                 <option value="rich-text">富文本格式（保留高亮）</option>
               </select>
-            </div>
-            <div class="text-sm text-muted-foreground">
-              <p><strong>Anki HTML:</strong> 转换Ruby为汉字[读音]格式，适合Anki导入</p>
-              <p><strong>纯文本:</strong> 移除所有HTML标签，纯文本内容</p>
-              <p><strong>富文本:</strong> 保留Ruby标签和高亮样式，适合支持HTML的系统</p>
+              <div class="csv-format-info-tooltip relative group">
+                <svg class="w-4 h-4 text-muted-foreground hover:text-primary cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+                <div class="csv-format-tooltip-content absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded border shadow-lg w-72 opacity-0 invisible transition-all z-50">
+                  <div class="space-y-2">
+                    <p><strong>Anki HTML:</strong> 转换Ruby为汉字[读音]格式，适合Anki导入</p>
+                    <p><strong>纯文本:</strong> 移除所有HTML标签，纯文本内容</p>
+                    <p><strong>富文本:</strong> 保留Ruby标签和高亮样式，适合支持HTML的系统</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -290,25 +310,27 @@ class OptionsManager {
     const csvFormatSelect = document.getElementById('csv-format-select') as HTMLSelectElement
 
     // 设置当前值
-    chrome.storage.local.get(['captureHotkey', 'debugMode', 'enableScreenshot', 'csvExportFormat']).then(result => {
-      const hotkey = result.captureHotkey || 's'
-      const debugMode = result.debugMode !== false
-      const enableScreenshot = result.enableScreenshot || false  // 默认关闭
-      const csvFormat = result.csvExportFormat || 'anki-html' // 默认格式
+    chrome.storage.local
+      .get(['captureHotkey', 'debugMode', 'enableScreenshot', 'csvExportFormat'])
+      .then(result => {
+        const hotkey = result.captureHotkey || 's'
+        const debugMode = result.debugMode !== false
+        const enableScreenshot = result.enableScreenshot || false // 默认关闭
+        const csvFormat = result.csvExportFormat || 'anki-html' // 默认格式
 
-      if (this.hotkeyInput) {
-        this.hotkeyInput.value = hotkey.toUpperCase()
-      }
-      if (this.debugCheckbox) {
-        this.debugCheckbox.checked = debugMode
-      }
-      if (screenshotCheckbox) {
-        screenshotCheckbox.checked = enableScreenshot
-      }
-      if (csvFormatSelect) {
-        csvFormatSelect.value = csvFormat
-      }
-    })
+        if (this.hotkeyInput) {
+          this.hotkeyInput.value = hotkey.toUpperCase()
+        }
+        if (this.debugCheckbox) {
+          this.debugCheckbox.checked = debugMode
+        }
+        if (screenshotCheckbox) {
+          screenshotCheckbox.checked = enableScreenshot
+        }
+        if (csvFormatSelect) {
+          csvFormatSelect.value = csvFormat
+        }
+      })
 
     // 绑定快捷键输入框的事件监听器
     if (this.hotkeyInput) {
@@ -752,10 +774,10 @@ class OptionsManager {
       document
         .getElementById('clear-learned-words')
         ?.addEventListener('click', () => this.clearAllCards())
-      
+
       // 为所有单个删除按钮添加事件监听器
       this.mainContent.querySelectorAll('.delete-learned-card-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
+        btn.addEventListener('click', async e => {
           e.stopPropagation()
           const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
           await this.deleteLearnedCard(cardId)
@@ -785,20 +807,20 @@ class OptionsManager {
 
       // 使用新的CSV格式化器
       const csvFormatter = new CSVFormatter()
-      
+
       // 根据用户设置创建导出选项
       const exportOptions = CSVFormatter.createOptionsFromFormat(userFormat)
-      
+
       const csvContent = csvFormatter.exportFlashCards(savedCards, exportOptions)
-      
+
       // 生成包含格式的文件名
-      const formatName = userFormat === 'plain-text' ? 'plain' : 
-                        userFormat === 'rich-text' ? 'rich' : 'anki'
+      const formatName =
+        userFormat === 'plain-text' ? 'plain' : userFormat === 'rich-text' ? 'rich' : 'anki'
       const filename = `immersive-memorize-${formatName}-${new Date().toISOString().slice(0, 10)}.csv`
-      
+
       // 使用CSV格式化器的下载功能
       csvFormatter.downloadCSV(csvContent, filename)
-      
+
       this.showNotification(`已导出 ${savedCards.length} 张卡片 (${formatName}格式)`, 'success')
     } catch (error) {
       console.error('导出失败:', error)
@@ -827,16 +849,16 @@ class OptionsManager {
       try {
         const result = await chrome.storage.local.get(['savedCards'])
         const savedCards = result.savedCards || []
-        
+
         const updatedCards = savedCards.filter((card: any) => card.id !== cardId)
         await chrome.storage.local.set({ savedCards: updatedCards })
-        
+
         // 更新学习进度（从记忆卡片推导）
         await this.vocabLibraryManager.updateProgressFromCards()
-        
+
         // 重新渲染已学词汇页面
         await this.renderLearnedWords()
-        
+
         this.showNotification('卡片已删除', 'success')
       } catch (error) {
         console.error('删除卡片失败:', error)
