@@ -1,6 +1,7 @@
 import '../globals.css'
-import type { ExtensionSettings, VocabLibrary, LevelProgress, ViewState, VocabEntry } from '@/types'
+import type { ExtensionSettings, VocabLibrary, LevelProgress, ViewState, VocabEntry, FlashCard } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
+import { CSVFormatter, CSVExportFormat } from '@/lib/csv-formatter'
 
 class OptionsManager {
   private vocabLibraryManager: VocabLibraryManager
@@ -662,38 +663,34 @@ class OptionsManager {
   private async exportToAnki(): Promise<void> {
     try {
       const result = await chrome.storage.local.get(['savedCards'])
-      const savedCards = result.savedCards || []
+      const savedCards: FlashCard[] = result.savedCards || []
 
       if (savedCards.length === 0) {
         this.showNotification('没有卡片可导出', 'error')
         return
       }
 
-      const csvHeader = 'Word;Sentence;Screenshot;Timestamp;Source'
-      const csvRows = savedCards.map((card: any) => {
-        const word = this.escapeCsvField(card.word)
-        const sentence = this.escapeCsvField(card.sentence)
-        const screenshot = card.screenshot ? `<img src="${card.screenshot}">` : ''
-        const timestamp = this.formatTimestamp(card.timestamp)
-        const source = this.escapeCsvField(card.sourceTitle)
-
-        return `${word};${sentence};${screenshot};${timestamp};${source}`
-      })
-
-      const csvContent = [csvHeader, ...csvRows].join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-
-      const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = `immersive-memorize-${new Date().toISOString().slice(0, 10)}.csv`
-      link.click()
-
-      URL.revokeObjectURL(url)
+      // 使用新的CSV格式化器
+      const csvFormatter = new CSVFormatter()
+      
+      // 提供格式选择（未来可以让用户选择）
+      const exportOptions = {
+        format: CSVExportFormat.ANKI_HTML, // Anki兼容格式
+        separator: ';',
+        includeScreenshots: true,
+        includeTimestamp: true,
+        includeSource: true
+      }
+      
+      const csvContent = csvFormatter.exportFlashCards(savedCards, exportOptions)
+      
+      // 使用CSV格式化器的下载功能
+      csvFormatter.downloadCSV(csvContent)
+      
       this.showNotification(`已导出 ${savedCards.length} 张卡片`, 'success')
     } catch (error) {
       console.error('导出失败:', error)
-      this.showNotification('导出失败', 'error')
+      this.showNotification(`导出失败: ${(error as Error).message}`, 'error')
     }
   }
 
