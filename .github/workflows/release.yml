@@ -44,23 +44,15 @@ jobs:
 
       - name: Create extension packages
         run: |
-          # Create zip package for Chrome Web Store
+          # Create zip package for Chrome Web Store and manual installation
           cd dist
           zip -r "../immersive-memorize-${{ steps.get_version.outputs.version }}.zip" .
-          cd ..
-
-          # Create CRX package (unsigned)
-          cd dist
-          zip -r "../immersive-memorize-${{ steps.get_version.outputs.version }}.crx" .
           cd ..
 
       - name: Verify package contents
         run: |
           echo "=== ZIP Package Contents ==="
           unzip -l "immersive-memorize-${{ steps.get_version.outputs.version }}.zip"
-          echo ""
-          echo "=== CRX Package Contents ==="
-          unzip -l "immersive-memorize-${{ steps.get_version.outputs.version }}.crx"
 
       - name: Generate release notes
         id: release_notes
@@ -88,7 +80,6 @@ jobs:
           prerelease: false
           files: |
             immersive-memorize-${{ steps.get_version.outputs.version }}.zip
-            immersive-memorize-${{ steps.get_version.outputs.version }}.crx
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -98,5 +89,4 @@ jobs:
           name: extension-packages-${{ steps.get_version.outputs.version }}
           path: |
             immersive-memorize-${{ steps.get_version.outputs.version }}.zip
-            immersive-memorize-${{ steps.get_version.outputs.version }}.crx
           retention-days: 30
