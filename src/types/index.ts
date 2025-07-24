@@ -60,6 +60,7 @@ export interface ExtensionSettings {
   enableScreenshot: boolean  // 新增：截图功能开关，默认false
   savedCards: FlashCard[]
   vocabLibrarySettings: VocabLibrarySettings
+  csvExportFormat: 'plain-text' | 'anki-html' | 'rich-text' // CSV导出格式设置
 }
 
 export interface NotificationType {

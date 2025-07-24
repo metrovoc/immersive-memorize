@@ -73,10 +73,13 @@ class OptionsManager {
     try {
       const debugMode = this.debugCheckbox?.checked || false
       const enableScreenshot = (document.getElementById('screenshot-checkbox') as HTMLInputElement)?.checked || false
+      const csvFormatSelect = document.getElementById('csv-format-select') as HTMLSelectElement
+      const csvExportFormat = csvFormatSelect?.value || 'anki-html'
 
       await chrome.storage.local.set({
         debugMode: debugMode,
         enableScreenshot: enableScreenshot,
+        csvExportFormat: csvExportFormat,
       })
 
       if (this.notification) {
@@ -246,6 +249,29 @@ class OptionsManager {
           </div>
         </div>
 
+        <!-- CSV导出格式设置 -->
+        <div class="bg-card rounded-lg border p-6">
+          <h3 class="text-lg font-semibold mb-4">CSV导出设置</h3>
+          <div class="space-y-3">
+            <div class="flex items-center space-x-3">
+              <label for="csv-format-select" class="text-sm font-medium min-w-[80px]">导出格式:</label>
+              <select 
+                id="csv-format-select"
+                class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <option value="anki-html">Anki HTML格式（推荐）</option>
+                <option value="plain-text">纯文本格式</option>
+                <option value="rich-text">富文本格式（保留高亮）</option>
+              </select>
+            </div>
+            <div class="text-sm text-muted-foreground">
+              <p><strong>Anki HTML:</strong> 转换Ruby为汉字[读音]格式，适合Anki导入</p>
+              <p><strong>纯文本:</strong> 移除所有HTML标签，纯文本内容</p>
+              <p><strong>富文本:</strong> 保留Ruby标签和高亮样式，适合支持HTML的系统</p>
+            </div>
+          </div>
+        </div>
+
         <!-- 调试选项 -->
         <div class="bg-card rounded-lg border p-6">
           <h3 class="text-lg font-semibold mb-4">调试选项</h3>
@@ -261,12 +287,14 @@ class OptionsManager {
     this.hotkeyInput = document.getElementById('hotkey-input') as HTMLInputElement
     this.debugCheckbox = document.getElementById('debug-checkbox') as HTMLInputElement
     const screenshotCheckbox = document.getElementById('screenshot-checkbox') as HTMLInputElement
+    const csvFormatSelect = document.getElementById('csv-format-select') as HTMLSelectElement
 
     // 设置当前值
-    const result = chrome.storage.local.get(['captureHotkey', 'debugMode', 'enableScreenshot']).then(result => {
+    chrome.storage.local.get(['captureHotkey', 'debugMode', 'enableScreenshot', 'csvExportFormat']).then(result => {
       const hotkey = result.captureHotkey || 's'
       const debugMode = result.debugMode !== false
       const enableScreenshot = result.enableScreenshot || false  // 默认关闭
+      const csvFormat = result.csvExportFormat || 'anki-html' // 默认格式
 
       if (this.hotkeyInput) {
         this.hotkeyInput.value = hotkey.toUpperCase()
@@ -276,6 +304,9 @@ class OptionsManager {
       }
       if (screenshotCheckbox) {
         screenshotCheckbox.checked = enableScreenshot
+      }
+      if (csvFormatSelect) {
+        csvFormatSelect.value = csvFormat
       }
     })
 
@@ -307,6 +338,11 @@ class OptionsManager {
     // 绑定截图开关的事件监听器
     if (screenshotCheckbox) {
       screenshotCheckbox.addEventListener('change', () => this.saveSettings())
+    }
+
+    // 绑定CSV格式选择的事件监听器
+    if (csvFormatSelect) {
+      csvFormatSelect.addEventListener('change', () => this.saveSettings())
     }
 
     // 实现信息icon的悬浮提示功能
@@ -738,8 +774,9 @@ class OptionsManager {
 
   private async exportToAnki(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['savedCards'])
+      const result = await chrome.storage.local.get(['savedCards', 'csvExportFormat'])
       const savedCards: FlashCard[] = result.savedCards || []
+      const userFormat = result.csvExportFormat || 'anki-html' // 使用用户设置的格式
 
       if (savedCards.length === 0) {
         this.showNotification('没有卡片可导出', 'error')
@@ -749,21 +786,20 @@ class OptionsManager {
       // 使用新的CSV格式化器
       const csvFormatter = new CSVFormatter()
       
-      // 提供格式选择（未来可以让用户选择）
-      const exportOptions = {
-        format: CSVExportFormat.ANKI_HTML, // Anki兼容格式
-        separator: ';',
-        includeScreenshots: true,
-        includeTimestamp: true,
-        includeSource: true
-      }
+      // 根据用户设置创建导出选项
+      const exportOptions = CSVFormatter.createOptionsFromFormat(userFormat)
       
       const csvContent = csvFormatter.exportFlashCards(savedCards, exportOptions)
       
-      // 使用CSV格式化器的下载功能
-      csvFormatter.downloadCSV(csvContent)
+      // 生成包含格式的文件名
+      const formatName = userFormat === 'plain-text' ? 'plain' : 
+                        userFormat === 'rich-text' ? 'rich' : 'anki'
+      const filename = `immersive-memorize-${formatName}-${new Date().toISOString().slice(0, 10)}.csv`
       
-      this.showNotification(`已导出 ${savedCards.length} 张卡片`, 'success')
+      // 使用CSV格式化器的下载功能
+      csvFormatter.downloadCSV(csvContent, filename)
+      
+      this.showNotification(`已导出 ${savedCards.length} 张卡片 (${formatName}格式)`, 'success')
     } catch (error) {
       console.error('导出失败:', error)
       this.showNotification(`导出失败: ${(error as Error).message}`, 'error')
