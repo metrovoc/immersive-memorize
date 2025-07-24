@@ -57,6 +57,7 @@ export interface ExtensionSettings {
   jlptWordlist: string[]
   captureHotkey: string
   debugMode: boolean
+  enableScreenshot: boolean  // 新增：截图功能开关，默认false
   savedCards: FlashCard[]
   vocabLibrarySettings: VocabLibrarySettings
 }
