@@ -72,9 +72,11 @@ class OptionsManager {
   private async saveSettings(): Promise<void> {
     try {
       const debugMode = this.debugCheckbox?.checked || false
+      const enableScreenshot = (document.getElementById('screenshot-checkbox') as HTMLInputElement)?.checked || false
 
       await chrome.storage.local.set({
         debugMode: debugMode,
+        enableScreenshot: enableScreenshot,
       })
 
       if (this.notification) {
@@ -85,6 +87,44 @@ class OptionsManager {
       if (this.notification) {
         this.showNotification('保存失败', 'error')
       }
+    }
+  }
+
+  private initializeTooltip(): void {
+    const tooltipTrigger = document.querySelector('.screenshot-info-tooltip')
+    const tooltipContent = document.querySelector('.tooltip-content')
+    
+    if (tooltipTrigger && tooltipContent) {
+      let hoverTimeout: NodeJS.Timeout | null = null
+      
+      // 鼠标进入时显示提示
+      tooltipTrigger.addEventListener('mouseenter', () => {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout)
+        }
+        tooltipContent.classList.remove('opacity-0', 'invisible')
+        tooltipContent.classList.add('opacity-100', 'visible')
+      })
+      
+      // 鼠标离开时延迟隐藏提示
+      tooltipTrigger.addEventListener('mouseleave', () => {
+        hoverTimeout = setTimeout(() => {
+          tooltipContent.classList.remove('opacity-100', 'visible')
+          tooltipContent.classList.add('opacity-0', 'invisible')
+        }, 150) // 150ms延迟，提供更好的用户体验
+      })
+      
+      // 鼠标在提示内容上时保持显示
+      tooltipContent.addEventListener('mouseenter', () => {
+        if (hoverTimeout) {
+          clearTimeout(hoverTimeout)
+        }
+      })
+      
+      tooltipContent.addEventListener('mouseleave', () => {
+        tooltipContent.classList.remove('opacity-100', 'visible')
+        tooltipContent.classList.add('opacity-0', 'invisible')
+      })
     }
   }
 
@@ -183,6 +223,29 @@ class OptionsManager {
           </div>
         </div>
 
+        <!-- 截图功能设置 -->
+        <div class="bg-card rounded-lg border p-6">
+          <h3 class="text-lg font-semibold mb-4">截图功能</h3>
+          <div class="flex items-center space-x-2">
+            <input type="checkbox" id="screenshot-checkbox" class="h-4 w-4 rounded border border-primary text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50">
+            <label for="screenshot-checkbox" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">启用学习卡片自动截图功能</label>
+            <div class="screenshot-info-tooltip relative group">
+              <svg class="w-4 h-4 text-muted-foreground hover:text-primary cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+              <div class="tooltip-content absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-popover text-popover-foreground text-xs rounded border shadow-lg w-64 opacity-0 invisible transition-all z-50">
+                <div class="space-y-2">
+                  <p>在Netflix学习时自动截取当前画面保存到学习卡片中</p>
+                  <div class="border-t border-border pt-2">
+                    <p class="text-yellow-600 font-medium">⚠️ 兼容性提示：</p>
+                    <p>如遇截图黑屏，可尝试在Chrome设置中关闭"硬件加速"功能来解决</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- 调试选项 -->
         <div class="bg-card rounded-lg border p-6">
           <h3 class="text-lg font-semibold mb-4">调试选项</h3>
@@ -197,17 +260,22 @@ class OptionsManager {
     // 重新获取DOM元素并绑定事件监听器
     this.hotkeyInput = document.getElementById('hotkey-input') as HTMLInputElement
     this.debugCheckbox = document.getElementById('debug-checkbox') as HTMLInputElement
+    const screenshotCheckbox = document.getElementById('screenshot-checkbox') as HTMLInputElement
 
     // 设置当前值
-    const result = chrome.storage.local.get(['captureHotkey', 'debugMode']).then(result => {
+    const result = chrome.storage.local.get(['captureHotkey', 'debugMode', 'enableScreenshot']).then(result => {
       const hotkey = result.captureHotkey || 's'
       const debugMode = result.debugMode !== false
+      const enableScreenshot = result.enableScreenshot || false  // 默认关闭
 
       if (this.hotkeyInput) {
         this.hotkeyInput.value = hotkey.toUpperCase()
       }
       if (this.debugCheckbox) {
         this.debugCheckbox.checked = debugMode
+      }
+      if (screenshotCheckbox) {
+        screenshotCheckbox.checked = enableScreenshot
       }
     })
 
@@ -235,6 +303,14 @@ class OptionsManager {
     if (this.debugCheckbox) {
       this.debugCheckbox.addEventListener('change', () => this.saveSettings())
     }
+
+    // 绑定截图开关的事件监听器
+    if (screenshotCheckbox) {
+      screenshotCheckbox.addEventListener('change', () => this.saveSettings())
+    }
+
+    // 实现信息icon的悬浮提示功能
+    this.initializeTooltip()
 
     // 添加词汇库卡片点击事件
     document.getElementById('vocab-library-card')?.addEventListener('click', () => {
