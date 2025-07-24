@@ -2,6 +2,7 @@ import type { FlashCard, ExtensionSettings, Word } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
 import { SubtitleProcessor } from './subtitle-processor'
 import { NetflixExtractor } from './netflix-extractor'
+import { SubtitleTextParser } from './subtitle-text-parser'
 
 class ImmersiveMemorize {
   private vocabLibraryManager: VocabLibraryManager
@@ -304,28 +305,15 @@ class ImmersiveMemorize {
 
       let sentence = ''
       if (sentenceElement) {
-        const clonedElement = sentenceElement.cloneNode(true) as HTMLElement
-
-        // Clean up the sentence HTML for storage
-        clonedElement.querySelectorAll('[style]').forEach(el => {
-          if (!el.classList.contains('im-highlight')) {
-            el.removeAttribute('style')
-          }
-        })
-        clonedElement.querySelectorAll('[class]').forEach(el => {
-          const classesToKeep = []
-          for (const cls of el.classList) {
-            if (cls.startsWith('im-')) {
-              classesToKeep.push(cls)
-            }
-          }
-          el.className = classesToKeep.join(' ')
-        })
-        clonedElement.querySelectorAll('ruby').forEach(rubyEl => rubyEl.classList.add('im-ruby'))
-        clonedElement.querySelectorAll('rt').forEach(rtEl => rtEl.classList.add('im-rt'))
-        clonedElement.querySelectorAll('rb').forEach(rbEl => rbEl.classList.add('im-rb'))
-
-        sentence = clonedElement.innerHTML
+        // 使用新的文本解析器处理句子内容
+        const textParser = new SubtitleTextParser()
+        const parsedText = textParser.parse(sentenceElement)
+        sentence = parsedText.displayHTML
+        
+        if (this.debugMode) {
+          console.log('[Immersive Memorize] Captured sentence HTML:', sentence)
+          console.log('[Immersive Memorize] Furigana mappings:', parsedText.furiganaMap)
+        }
       }
 
       const videoElement = document.querySelector<HTMLVideoElement>('video')
