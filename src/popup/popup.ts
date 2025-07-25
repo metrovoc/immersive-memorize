@@ -11,6 +11,7 @@ class PopupManager {
   private notification: HTMLElement
   private settingsButton: HTMLButtonElement
   private learnedWordsButton: HTMLButtonElement
+  private customSubtitleButton: HTMLButtonElement
   private vocabLibraryManager: VocabLibraryManager
 
   private savedCards: FlashCard[] = []
@@ -26,6 +27,9 @@ class PopupManager {
     this.notification = document.getElementById('notification')!
     this.settingsButton = document.getElementById('settings-button') as HTMLButtonElement
     this.learnedWordsButton = document.getElementById('learned-words-button') as HTMLButtonElement
+    this.customSubtitleButton = document.getElementById(
+      'custom-subtitle-button'
+    ) as HTMLButtonElement
     this.vocabLibraryManager = new VocabLibraryManager()
   }
 
@@ -40,11 +44,12 @@ class PopupManager {
     this.nextPageBtn.addEventListener('click', () => this.changePage(1))
     this.settingsButton.addEventListener('click', () => this.openOptions())
     this.learnedWordsButton.addEventListener('click', () => this.openLearnedWords())
+    this.customSubtitleButton.addEventListener('click', () => this.initiateVideoSelection())
   }
 
   private async loadCards(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['savedCards']) as Partial<ExtensionSettings>
+      const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
       this.savedCards = result.savedCards || []
 
       this.updateStats()
@@ -81,7 +86,9 @@ class PopupManager {
     const endIndex = startIndex + this.cardsPerPage
     const pageCards = this.savedCards.slice(startIndex, endIndex)
 
-    this.cardsList.innerHTML = pageCards.map(card => `
+    this.cardsList.innerHTML = pageCards
+      .map(
+        card => `
       <div class="card border rounded-lg p-4 mb-3 bg-card hover:bg-accent/50 transition-colors group" data-id="${card.id}">
         <div class="flex justify-between items-start gap-3">
           <div class="flex-1 min-w-0">
@@ -90,12 +97,16 @@ class PopupManager {
               ${card.level ? `<div class="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">${card.level}</div>` : ''}
             </div>
             
-            ${card.reading && card.reading !== card.word ? 
-              `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(card.reading)}</div>` : ''
+            ${
+              card.reading && card.reading !== card.word
+                ? `<div class="text-sm text-muted-foreground mb-1">读音: ${this.escapeHtml(card.reading)}</div>`
+                : ''
             }
             
-            ${card.definition ? 
-              `<div class="text-sm text-foreground mb-2">${this.escapeHtml(card.definition)}</div>` : ''
+            ${
+              card.definition
+                ? `<div class="text-sm text-foreground mb-2">${this.escapeHtml(card.definition)}</div>`
+                : ''
             }
             
             <div class="text-xs text-muted-foreground mb-2 flex items-center gap-2">
@@ -119,11 +130,13 @@ class PopupManager {
           </button>
         </div>
       </div>
-    `).join('')
+    `
+      )
+      .join('')
 
     // 为所有删除按钮添加事件监听器
     this.cardsList.querySelectorAll('.delete-card-btn').forEach(btn => {
-      btn.addEventListener('click', async (e) => {
+      btn.addEventListener('click', async e => {
         e.stopPropagation()
         const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
         await this.deleteCard(cardId)
@@ -185,7 +198,6 @@ class PopupManager {
     }
   }
 
-
   private openOptions(): void {
     chrome.runtime.openOptionsPage()
   }
@@ -193,8 +205,28 @@ class PopupManager {
   private openLearnedWords(): void {
     // 在新标签页中打开已学词汇页面
     chrome.tabs.create({
-      url: chrome.runtime.getURL('options/options.html') + '?view=learned-words'
+      url: chrome.runtime.getURL('options/options.html') + '?view=learned-words',
     })
+  }
+
+  private async initiateVideoSelection(): Promise<void> {
+    try {
+      // 发送消息到background script，然后转发给content script
+      const response = await chrome.runtime.sendMessage({
+        type: 'INITIATE_VIDEO_SELECTION',
+      })
+
+      if (response?.success) {
+        this.showNotification('正在启动视频选择...', 'info')
+        // 关闭popup，让用户专注于页面上的操作
+        window.close()
+      } else {
+        this.showNotification('启动失败：' + (response?.error || '未知错误'), 'error')
+      }
+    } catch (error) {
+      console.error('Failed to initiate video selection:', error)
+      this.showNotification('启动失败：请确保在视频页面上使用', 'error')
+    }
   }
 
   private escapeHtml(text: string): string {
@@ -209,7 +241,10 @@ class PopupManager {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
-  private showNotification(message: string, type: 'success' | 'error' | 'warning' | 'info' = 'success'): void {
+  private showNotification(
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'success'
+  ): void {
     let bgColor: string
     switch (type) {
       case 'error':
@@ -242,11 +277,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   container.innerHTML = `
     <div class="space-y-4">
       <header class="flex items-center justify-between pb-4 border-b">
-        <button id="learned-words-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="已学词汇">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
+        <div class="flex items-center gap-2">
+          <button id="learned-words-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="已学词汇">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          
+          <button id="custom-subtitle-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="关联本地字幕">
+            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4V2C7 1.44772 7.44772 1 8 1H16C16.5523 1 17 1.44772 17 2V4H20C20.5523 4 21 4.44772 21 5C21 5.55228 20.5523 6 20 6H19V18C19 19.1046 18.1046 20 17 20H7C5.89543 20 5 19.1046 5 18V6H4C3.44772 6 3 5.55228 3 5C3 4.44772 3.44772 4 4 4H7ZM9 3V4H15V3H9ZM7 6V18H17V6H7Z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 8H15M9 12H15M9 16H12" />
+            </svg>
+          </button>
+        </div>
         
         <div class="text-center flex-1">
           <h1 class="text-xl font-bold mb-1">Immersive Memorize</h1>
