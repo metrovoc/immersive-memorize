@@ -121,9 +121,7 @@ class ImmersiveMemorize {
 
   private async refreshCurrentSubtitles(): Promise<void> {
     const subtitleContainers = Array.from(
-      document.querySelectorAll<HTMLElement>(
-        '.player-timedtext-text-container, ' + '.ltr-1472gpj, ' + '[data-uia="player-caption-text"]'
-      )
+      document.querySelectorAll<HTMLElement>('.player-timedtext-text-container')
     )
 
     if (subtitleContainers.length === 0) return
@@ -166,11 +164,7 @@ class ImmersiveMemorize {
   }
 
   private startSubtitleObserver(): void {
-    const subtitleSelectors = [
-      '.player-timedtext-text-container',
-      '.ltr-1472gpj',
-      '[data-uia="player-caption-text"]',
-    ].join(', ')
+    const subtitleSelectors = ['.player-timedtext-text-container'].join(', ')
 
     const handleMutation = (mutations: MutationRecord[]) => {
       mutations.forEach(mutation => {
@@ -307,7 +301,7 @@ class ImmersiveMemorize {
       }
 
       const sentenceElement = this.currentTargetElement.closest(
-        '.player-timedtext-text-container, .ltr-1472gpj, [data-uia="player-caption-text"]'
+        '.player-timedtext-text-container'
       ) as HTMLElement | null
 
       let sentence = ''
@@ -411,35 +405,36 @@ class ImmersiveMemorize {
   }
 
   private async captureVideoFrame(videoElement: HTMLVideoElement | null): Promise<string> {
-    if (!videoElement) return '';
+    if (!videoElement) return ''
 
     if (this.debugMode) {
-      console.log('[Immersive Memorize] Requesting screenshot via background script...');
+      console.log('[Immersive Memorize] Requesting screenshot via background script...')
     }
 
     try {
       // Send a message to the background script to request a screenshot
-      const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' });
+      const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' })
 
       if (response && response.data) {
         if (this.debugMode) {
-          console.log('[Immersive Memorize] Screenshot successful, received data URL');
+          console.log('[Immersive Memorize] Screenshot successful, received data URL')
         }
-        return response.data;
+        return response.data
       } else {
-        const errorMessage = response?.error || 'Unknown error';
-        console.error(`[Immersive Memorize] Screenshot failed: ${errorMessage}`);
-        this.showNotification(`Screenshot failed: ${errorMessage}`, 'error');
-        return '';
+        const errorMessage = response?.error || 'Unknown error'
+        console.error(`[Immersive Memorize] Screenshot failed: ${errorMessage}`)
+        this.showNotification(`Screenshot failed: ${errorMessage}`, 'error')
+        return ''
       }
     } catch (error) {
-      console.error('[Immersive Memorize] A critical error occurred while calling the screenshot API:', error);
-      this.showNotification(`Screenshot failed: ${(error as Error).message}`, 'error');
-      return '';
+      console.error(
+        '[Immersive Memorize] A critical error occurred while calling the screenshot API:',
+        error
+      )
+      this.showNotification(`Screenshot failed: ${(error as Error).message}`, 'error')
+      return ''
     }
   }
-
-  
 
   private showNotification(
     message: string,
