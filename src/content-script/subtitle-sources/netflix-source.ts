@@ -3,14 +3,13 @@
  * 专门处理Netflix网站的字幕提取和解析
  */
 
-import type { 
-  ISubtitleSource, 
-  PageContext, 
-  MediaInfo, 
+import type {
+  ISubtitleSource,
+  PageContext,
+  MediaInfo,
   ParsedSubtitle,
-  SubtitleSourceCapabilities 
+  SubtitleSourceCapabilities
 } from './types';
-import { NetflixExtractor } from '../netflix-extractor';
 import { SubtitleTextParser } from '../subtitle-text-parser';
 
 export class NetflixSubtitleSource implements ISubtitleSource {
@@ -23,14 +22,12 @@ export class NetflixSubtitleSource implements ISubtitleSource {
   };
 
   private observer: MutationObserver | null = null;
-  private extractor: NetflixExtractor;
   private textParser: SubtitleTextParser;
   private debugMode: boolean;
   private isInitialized: boolean = false;
 
   constructor(debugMode: boolean = false) {
     this.debugMode = debugMode;
-    this.extractor = new NetflixExtractor(debugMode);
     this.textParser = new SubtitleTextParser();
   }
 
@@ -44,19 +41,18 @@ export class NetflixSubtitleSource implements ISubtitleSource {
     if (this.isInitialized) return;
 
     try {
-      // 等待Netflix播放器加载
-      const playerReady = await this.extractor.waitForNetflixPlayer(10000);
+      const playerReady = await this._waitForNetflixPlayer(10000);
       if (!playerReady) {
-        throw new Error('Netflix播放器加载超时');
+        throw new Error('Netflix player timed out');
       }
 
       this.isInitialized = true;
       
       if (this.debugMode) {
-        console.log('[NetflixSubtitleSource] 初始化完成');
+        console.log('[NetflixSubtitleSource] Initialized successfully');
       }
     } catch (error) {
-      console.error('[NetflixSubtitleSource] 初始化失败:', error);
+      console.error('[NetflixSubtitleSource] Initialization failed:', error);
       throw error;
     }
   }
@@ -114,7 +110,7 @@ export class NetflixSubtitleSource implements ISubtitleSource {
 
   extractMediaInfo(): MediaInfo {
     try {
-      const netflixInfo = this.extractor.extractNetflixInfo();
+      const netflixInfo = this._extractNetflixInfo();
       
       return {
         title: netflixInfo.showTitle,
@@ -125,7 +121,7 @@ export class NetflixSubtitleSource implements ISubtitleSource {
         episodeTitle: netflixInfo.episodeTitle
       };
     } catch (error) {
-      console.error('[NetflixSubtitleSource] 提取媒体信息失败:', error);
+      console.error('[NetflixSubtitleSource] Failed to extract media info:', error);
       return {
         title: 'Unknown',
         fullTitle: 'Unknown'
@@ -224,6 +220,152 @@ export class NetflixSubtitleSource implements ISubtitleSource {
     
     return hasVideo && hasNetflixElements;
   }
+
+  // --- Start of integrated NetflixExtractor logic ---
+
+  /**
+   * 提取Netflix页面的详细信息
+   * @private
+   */
+  private _extractNetflixInfo(): any {
+    const info: any = {
+      showTitle: 'Unknown',
+      fullTitle: 'Unknown'
+    };
+
+    try {
+      const documentTitle = document.title.replace(' - Netflix', '');
+      const showTitle = this._extractShowTitle();
+      const seasonNumber = this._extractSeasonNumber();
+      const episodeNumber = this._extractEpisodeNumber();
+      const episodeTitle = this._extractEpisodeTitle();
+
+      info.showTitle = showTitle || documentTitle || 'Unknown';
+      info.seasonNumber = seasonNumber || undefined;
+      info.episodeNumber = episodeNumber || undefined;
+      info.episodeTitle = episodeTitle || undefined;
+      info.fullTitle = this._buildFullTitle(info);
+
+      if (this.debugMode) {
+        console.log('[NetflixSubtitleSource] Extracted Info:', info);
+      }
+
+    } catch (error) {
+      console.error('[NetflixSubtitleSource] Failed to extract info:', error);
+      info.showTitle = document.title.replace(' - Netflix', '') || 'Unknown';
+      info.fullTitle = info.showTitle;
+    }
+
+    return info;
+  }
+
+  /**
+   * @private
+   */
+  private _extractShowTitle(): string | null {
+    const titleSelectors = [
+      'h4.ellipsize-text', '[data-uia="video-title"]', '.video-title',
+      '.title-info-metadata h1', '.fallback-text-container h1',
+      '.player-status-main-title', '.nf-player-container .video-title',
+      '[data-uia="title-field"]', '.title-field',
+      '.video-metadata .show-title', '.episode-metadata .show-title'
+    ];
+    for (const selector of titleSelectors) {
+      const element = document.querySelector(selector);
+      if (element?.textContent?.trim()) return element.textContent.trim();
+    }
+    return null;
+  }
+
+  /**
+   * @private
+   */
+  private _extractSeasonNumber(): string | null {
+    const seasonSelectors = [
+      '[data-uia="season-selector"] .current-season', '[data-uia="season-selector"]',
+      '.season-label', '.current-season', '.episode-metadata .season-info',
+      '.video-metadata .season-number', '.season-number', '.player-status-season',
+      '.nf-player-container .season-info', '[data-uia="season-field"]', '.season-field'
+    ];
+    for (const selector of seasonSelectors) {
+      const element = document.querySelector(selector);
+      if (element?.textContent?.trim()) {
+        const text = element.textContent.trim();
+        const seasonMatch = text.match(/(?:第|Season|S)[\s]*(\d+)[\s]*[季]?/i);
+        if (seasonMatch) return text;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @private
+   */
+  private _extractEpisodeNumber(): string | null {
+    const episodeSelectors = [
+      '[data-uia="episode-title"]', '.episode-title', '.current-episode',
+      '.video-metadata .episode-number', '.episode-number', '.episode-metadata .episode-number',
+      '.player-status-episode', '.nf-player-container .episode-info',
+      '.episode-selector .selected .episode-number', '.episode-list .selected .episode-number',
+      '[data-uia="episode-field"]', '.episode-field'
+    ];
+    for (const selector of episodeSelectors) {
+      const element = document.querySelector(selector);
+      if (element?.textContent?.trim()) {
+        const text = element.textContent.trim();
+        const episodeMatch = text.match(/(?:第|Episode|E|EP)[\s]*(\d+)[\s]*[集话]?/i);
+        if (episodeMatch) return text;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * @private
+   */
+  private _extractEpisodeTitle(): string | null {
+    const episodeTitleSelectors = [
+      '[data-uia="episode-title"] .episode-title-1', '.episode-title-text', '.episode-title-name',
+      '.video-metadata .episode-title', '.episode-metadata .episode-title',
+      '.player-status-main-title .episode-title', '.player-status-episode-title',
+      '.episode-selector .selected .episode-title', '.episode-list .selected .title'
+    ];
+    for (const selector of episodeTitleSelectors) {
+      const element = document.querySelector(selector);
+      if (element?.textContent?.trim()) return element.textContent.trim();
+    }
+    return null;
+  }
+
+  /**
+   * @private
+   */
+  private _buildFullTitle(info: any): string {
+    let parts: string[] = [];
+    if (info.showTitle && info.showTitle !== 'Unknown') parts.push(info.showTitle);
+    if (info.seasonNumber) parts.push(info.seasonNumber);
+    if (info.episodeNumber) parts.push(info.episodeNumber);
+    if (info.episodeTitle) parts.push(`"${info.episodeTitle}"`);
+    return parts.length > 0 ? parts.join(' ') : 'Unknown';
+  }
+
+  /**
+   * @private
+   */
+  private async _waitForNetflixPlayer(timeout: number = 10000): Promise<boolean> {
+    const startTime = Date.now();
+    while (Date.now() - startTime < timeout) {
+      if (this.hasNetflixPlayer()) {
+        if (this.debugMode) console.log('[NetflixSubtitleSource] Netflix player is ready.');
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    if (this.debugMode) console.log('[NetflixSubtitleSource] Wait for Netflix player timed out.');
+    return false;
+  }
+
+  // --- End of integrated NetflixExtractor logic ---
 
   /**
    * 获取当前视频元素
