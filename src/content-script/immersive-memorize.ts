@@ -27,7 +27,19 @@ export class ImmersiveMemorize {
   private debugMode: boolean = true
   private enableScreenshot: boolean = false
 
+  // Context-Aware 属性
+  private isMainFrame: boolean
+  private frameContext: 'main' | 'iframe'
+
   constructor() {
+    // 检测当前frame上下文
+    this.isMainFrame = window.top === window
+    this.frameContext = this.isMainFrame ? 'main' : 'iframe'
+    
+    if (this.debugMode) {
+      console.log(`[ImmersiveMemorizeV2] 初始化${this.frameContext}frame模式`)
+    }
+
     this.vocabLibraryManager = new VocabLibraryManager()
     this.sourceRegistry = new SubtitleSourceRegistry(this.debugMode)
     this.customSource = new CustomSRTSubtitleSource(this.debugMode)
@@ -53,32 +65,65 @@ export class ImmersiveMemorize {
 
   async init(): Promise<void> {
     try {
-      // 初始化词汇库管理器
-      await this.vocabLibraryManager.init()
-
-      // 加载设置
-      await this.loadSettings()
-
-      // 初始化字幕处理器
-      this.subtitleProcessor = new SubtitleProcessor(
-        this.vocabLibraryManager,
-        this.learnedWords,
-        this.debugMode
-      )
-
-      // 检测页面环境并选择字幕源
-      await this.detectAndInitializeSubtitleSources()
-
-      // 设置事件监听器
-      this.setupEventListeners()
-      this.setupStorageListener()
+      if (this.frameContext === 'main') {
+        await this.initMainFrameFeatures()
+      } else {
+        await this.initIFrameFeatures()
+      }
 
       if (this.debugMode) {
-        console.log('[ImmersiveMemorizeV2] 初始化完成')
-        this.logCurrentState()
+        console.log(`[ImmersiveMemorizeV2] ${this.frameContext}frame初始化完成`)
       }
     } catch (error) {
-      console.error('[ImmersiveMemorizeV2] 初始化失败:', error)
+      console.error(`[ImmersiveMemorizeV2] ${this.frameContext}frame初始化失败:`, error)
+    }
+  }
+
+  /**
+   * 初始化主frame功能
+   */
+  private async initMainFrameFeatures(): Promise<void> {
+    // 主frame：完整功能但不处理iframe内视频
+    await this.vocabLibraryManager.init()
+    await this.loadSettings()
+
+    this.subtitleProcessor = new SubtitleProcessor(
+      this.vocabLibraryManager,
+      this.learnedWords,
+      this.debugMode
+    )
+
+    // 只检测主frame的字幕源
+    await this.detectAndInitializeSubtitleSources()
+    this.setupEventListeners()
+    this.setupStorageListener()
+
+    if (this.debugMode) {
+      this.logCurrentState()
+    }
+  }
+
+  /**
+   * 初始化iframe功能
+   */
+  private async initIFrameFeatures(): Promise<void> {
+    // iframe：轻量功能，专注视频处理
+    await this.vocabLibraryManager.init()
+    await this.loadSettings()
+
+    this.subtitleProcessor = new SubtitleProcessor(
+      this.vocabLibraryManager,
+      this.learnedWords,
+      this.debugMode
+    )
+
+    // iframe只处理自己的视频和字幕
+    await this.detectAndInitializeSubtitleSources()
+    this.setupEventListeners()
+    this.setupStorageListener()
+
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] iframe轻量模式，专注视频处理')
     }
   }
 
