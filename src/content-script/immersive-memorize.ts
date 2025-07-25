@@ -342,7 +342,6 @@ export class ImmersiveMemorize {
     const videoElements = this.discoverVideoElements()
 
     if (videoElements.length === 0) {
-      this.showNotification('页面中未找到视频元素', 'warning')
       return
     }
 
@@ -352,8 +351,6 @@ export class ImmersiveMemorize {
 
     // 为每个视频创建选择遮罩
     this.createVideoSelectionOverlays(videoElements)
-
-    this.showNotification(`发现 ${videoElements.length} 个视频，请选择目标视频`, 'info')
   }
 
   /**
