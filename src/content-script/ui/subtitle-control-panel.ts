@@ -3,15 +3,15 @@
  * 提供字幕源切换和自定义字幕配置界面
  */
 
-import type { ImmersiveMemorizeV2 } from '../immersive-memorize-v2';
+import type { ImmersiveMemorize } from '../immersive-memorize';
 
 export class SubtitleControlPanel {
-  private main: ImmersiveMemorizeV2;
+  private main: ImmersiveMemorize;
   private panelElement: HTMLElement | null = null;
   private isVisible: boolean = false;
   private debugMode: boolean;
 
-  constructor(main: ImmersiveMemorizeV2, debugMode: boolean = false) {
+  constructor(main: ImmersiveMemorize, debugMode: boolean = false) {
     this.main = main;
     this.debugMode = debugMode;
   }

@@ -11,7 +11,7 @@ import { NetflixSubtitleSource } from './subtitle-sources/netflix-source';
 import { CustomSRTSubtitleSource } from './subtitle-sources/custom-srt-source';
 import type { ISubtitleSource, PageContext } from './subtitle-sources/types';
 
-export class ImmersiveMemorizeV2 {
+export class ImmersiveMemorize {
   private vocabLibraryManager: VocabLibraryManager;
   private subtitleProcessor: SubtitleProcessor | null = null;
   private sourceRegistry: SubtitleSourceRegistry;
