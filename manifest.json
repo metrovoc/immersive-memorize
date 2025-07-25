@@ -15,7 +15,7 @@
   "options_page": "options/options.html",
   "content_scripts": [
     {
-      "matches": ["*://*.netflix.com/*"],
+      "matches": ["<all_urls>"],
       "js": ["content-script.js"],
       "run_at": "document_end"
     }
