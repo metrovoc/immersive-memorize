@@ -63,14 +63,14 @@
 
 ### 方法一：从 Release 下载（推荐）
 
-1. 前往 [Releases 页面](https://github.com/your-username/immersive-memorize/releases)
+1. 前往 [Releases 页面](https://github.com/metrovoc/immersive-memorize/releases)
 2. 下载最新版本的 `immersive-memorize-v*.zip` 文件
 3. 解压到本地文件夹
 
 ### 方法二：克隆源码并自行编译
 
 ```bash
-git clone https://github.com/your-username/immersive-memorize.git
+git clone https://github.com/metrovoc/immersive-memorize.git
 cd immersive-memorize
 npm install
 npm run build
@@ -167,7 +167,7 @@ GitHub Actions 会自动进行以下检查：
 - **🧠 更智能的辅助功能**
   - 集成大型语言模型（LLM），提供如“自动翻译例句”、“智能修正单词释义”等实验性功能。
 
-我们欢迎您通过 [GitHub Issues](https://github.com/your-username/immersive-memorize/issues) 分享您的想法和建议，共同创造新时代的语言学习工具！
+我们欢迎您通过 [GitHub Issues](https://github.com/metrovoc/immersive-memorize/issues) 分享您的想法和建议，共同创造新时代的语言学习工具！
 
 ---
 
