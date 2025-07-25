@@ -361,12 +361,46 @@ export class ImmersiveMemorize {
    */
   private discoverVideoElements(): HTMLVideoElement[] {
     const videos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[]
+    
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 主页面视频元素:', videos.length)
+      
+      // 检查iframe中的视频
+      const iframes = Array.from(document.querySelectorAll('iframe'))
+      console.log('[ImmersiveMemorizeV2] 发现iframe数量:', iframes.length)
+      
+      iframes.forEach((iframe, index) => {
+        try {
+          // 尝试访问iframe内容（可能会被同源策略阻止）
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+          if (iframeDoc) {
+            const iframeVideos = Array.from(iframeDoc.querySelectorAll('video'))
+            console.log(`[ImmersiveMemorizeV2] iframe ${index} 中的视频:`, iframeVideos.length)
+            if (iframeVideos.length > 0) {
+              console.log(`[ImmersiveMemorizeV2] iframe ${index} 视频详情:`, iframeVideos.map(v => ({
+                src: v.src,
+                attributes: Array.from(v.attributes).map(attr => `${attr.name}="${attr.value}"`),
+                rect: v.getBoundingClientRect()
+              })))
+            }
+          } else {
+            console.log(`[ImmersiveMemorizeV2] iframe ${index} 无法访问（可能跨域）:`, iframe.src)
+          }
+        } catch (e) {
+          console.log(`[ImmersiveMemorizeV2] iframe ${index} 访问被阻止:`, (e as Error).message, iframe.src)
+        }
+      })
+    }
 
-    return videos.filter(video => {
-      // 过滤掉不可见或太小的视频
-      const rect = video.getBoundingClientRect()
-      return rect.width > 100 && rect.height > 100 && video.style.display !== 'none'
-    })
+    // 临时移除过滤条件进行测试，直接返回所有视频
+    return videos
+
+    // 原过滤逻辑（暂时注释掉）
+    // return videos.filter(video => {
+    //   // 过滤掉不可见或太小的视频
+    //   const rect = video.getBoundingClientRect()
+    //   return rect.width > 100 && rect.height > 100 && video.style.display !== 'none'
+    // })
   }
 
   /**
