@@ -27,9 +27,6 @@ class Application {
 
       this.isInitialized = true
       console.log('[Application] Immersive Memorize V2 初始化完成')
-
-      // 显示启动通知
-      this.showStartupNotification()
     } catch (error) {
       console.error('[Application] 初始化失败:', error)
     }
@@ -59,16 +56,6 @@ class Application {
     }
   }
 
-  private showStartupNotification(): void {
-    const status = this.immersiveMemorize.getStatus()
-
-    let message = 'Immersive Memorize V2 已启动'
-    if (status.activeSource) {
-      message += ` - 使用 ${status.activeSource}`
-    }
-
-    this.showNotification(message, 'success')
-  }
 
   private showNotification(
     message: string,
