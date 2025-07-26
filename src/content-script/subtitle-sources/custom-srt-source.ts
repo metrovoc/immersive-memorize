@@ -3,110 +3,115 @@
  * 支持用户上传SRT文件并在任何视频上显示字幕
  */
 
-import type { 
-  ICustomSubtitleSource, 
-  PageContext, 
-  MediaInfo, 
+import type {
+  ICustomSubtitleSource,
+  PageContext,
+  MediaInfo,
   ParsedSubtitle,
   SubtitleEntry,
-  SubtitleSourceCapabilities 
-} from './types';
+  SubtitleSourceCapabilities,
+} from './types'
 
 export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
-  readonly name = 'Custom SRT';
-  readonly priority = 1; // 低于原生字幕
+  readonly name = 'Custom SRT'
+  readonly priority = 1 // 低于原生字幕
   readonly capabilities: SubtitleSourceCapabilities = {
     supportsNativeSubtitles: false,
     supportsCustomSubtitles: true,
-    requiresUserInput: true
-  };
+    requiresUserInput: true,
+  }
 
-  private srtEntries: SubtitleEntry[] = [];
-  private targetVideo: HTMLVideoElement | null = null;
-  private overlayElement: HTMLElement | null = null;
-  private currentSubtitle: SubtitleEntry | null = null;
-  private timeUpdateHandler: (() => void) | null = null;
-  private debugMode: boolean;
-  private isInitialized: boolean = false;
+  private srtEntries: SubtitleEntry[] = []
+  private targetVideo: HTMLVideoElement | null = null
+  private overlayElement: HTMLElement | null = null
+  private currentSubtitle: SubtitleEntry | null = null
+  private timeUpdateHandler: (() => void) | null = null
+  private debugMode: boolean
+  private isInitialized: boolean = false
 
   constructor(debugMode: boolean = false) {
-    this.debugMode = debugMode;
+    this.debugMode = debugMode
   }
 
   canHandle(context: PageContext): boolean {
     // 只要有视频元素就可以处理
-    return context.hasVideo;
+    return context.hasVideo
   }
 
   async initialize(): Promise<void> {
-    this.isInitialized = true;
+    this.isInitialized = true
     if (this.debugMode) {
-      console.log('[CustomSRTSubtitleSource] 初始化完成');
+      console.log('[CustomSRTSubtitleSource] 初始化完成')
     }
   }
 
   isReady(): boolean {
-    return this.isInitialized && this.srtEntries.length > 0 && this.targetVideo !== null;
+    return this.isInitialized && this.srtEntries.length > 0 && this.targetVideo !== null
   }
 
   detectSubtitleContainers(): HTMLElement[] {
     // 自定义字幕源返回自己创建的覆盖层
-    return this.overlayElement ? [this.overlayElement] : [];
+    return this.overlayElement ? [this.overlayElement] : []
   }
 
   parseSubtitleContent(container: HTMLElement): ParsedSubtitle {
-    const text = container.textContent || '';
+    const text = container.textContent || ''
     return {
       cleanText: text,
       displayHTML: container.innerHTML,
-      furiganaMap: [] // SRT字幕默认不包含Furigana信息
-    };
+      furiganaMap: [], // SRT字幕默认不包含Furigana信息
+    }
   }
 
   extractMediaInfo(): MediaInfo {
-    const title = document.title || 'Unknown';
+    const title = document.title || 'Unknown'
     return {
       title,
-      fullTitle: title
-    };
+      fullTitle: title,
+    }
   }
 
   setupObserver(callback: (containers: HTMLElement[]) => void): void {
     // 自定义字幕源通过时间同步来更新
     if (this.targetVideo && this.timeUpdateHandler) {
-      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler);
+      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler)
     }
 
     this.timeUpdateHandler = () => {
       if (this.targetVideo) {
-        this.syncSubtitles(this.targetVideo.currentTime);
-        const containers = this.detectSubtitleContainers();
+        this.syncSubtitles(this.targetVideo.currentTime)
+        const containers = this.detectSubtitleContainers()
         if (containers.length > 0) {
-          callback(containers);
+          callback(containers)
         }
       }
-    };
+    }
 
     if (this.targetVideo) {
-      this.targetVideo.addEventListener('timeupdate', this.timeUpdateHandler);
+      this.targetVideo.addEventListener('timeupdate', this.timeUpdateHandler)
     }
   }
 
   cleanup(): void {
     if (this.targetVideo && this.timeUpdateHandler) {
-      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler);
+      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler)
     }
 
     if (this.overlayElement) {
-      this.overlayElement.remove();
-      this.overlayElement = null;
+      this.overlayElement.remove()
+      this.overlayElement = null
     }
 
-    this.timeUpdateHandler = null;
-    this.currentSubtitle = null;
+    this.timeUpdateHandler = null
+    this.currentSubtitle = null
+
+    // Reset all state to allow fresh reload
+    this.srtEntries = []
+    this.targetVideo = null
+    this.isInitialized = false
 
     if (this.debugMode) {
-      console.log('[CustomSRTSubtitleSource] 清理完成');
+      console.log('[CustomSRTSubtitleSource] 清理完成')
     }
   }
 
@@ -115,15 +120,15 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    */
   async loadSRTFile(file: File): Promise<void> {
     try {
-      const content = await this.readFileAsText(file);
-      this.srtEntries = this.parseSRT(content);
-      
+      const content = await this.readFileAsText(file)
+      this.srtEntries = this.parseSRT(content)
+
       if (this.debugMode) {
-        console.log(`[CustomSRTSubtitleSource] 成功解析 ${this.srtEntries.length} 条字幕`);
+        console.log(`[CustomSRTSubtitleSource] 成功解析 ${this.srtEntries.length} 条字幕`)
       }
     } catch (error) {
-      console.error('[CustomSRTSubtitleSource] SRT文件加载失败:', error);
-      throw error;
+      console.error('[CustomSRTSubtitleSource] SRT文件加载失败:', error)
+      throw error
     }
   }
 
@@ -131,23 +136,23 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    * 设置目标视频元素
    */
   setTargetVideo(video: HTMLVideoElement): void {
-    if (this.targetVideo === video) return;
+    if (this.targetVideo === video) return
 
     // 清理旧的视频监听器
     if (this.targetVideo && this.timeUpdateHandler) {
-      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler);
+      this.targetVideo.removeEventListener('timeupdate', this.timeUpdateHandler)
     }
 
-    this.targetVideo = video;
-    
+    this.targetVideo = video
+
     // 重新创建覆盖层
     if (this.overlayElement) {
-      this.overlayElement.remove();
+      this.overlayElement.remove()
     }
-    this.overlayElement = this.createSubtitleOverlay();
+    this.overlayElement = this.createSubtitleOverlay()
 
     if (this.debugMode) {
-      console.log('[CustomSRTSubtitleSource] 设置目标视频元素');
+      console.log('[CustomSRTSubtitleSource] 设置目标视频元素')
     }
   }
 
@@ -156,11 +161,11 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    */
   createSubtitleOverlay(): HTMLElement {
     if (!this.targetVideo) {
-      throw new Error('必须先设置目标视频元素');
+      throw new Error('必须先设置目标视频元素')
     }
 
-    const overlay = document.createElement('div');
-    overlay.className = 'im-custom-subtitle-overlay';
+    const overlay = document.createElement('div')
+    overlay.className = 'im-custom-subtitle-overlay'
     overlay.style.cssText = `
       position: absolute;
       bottom: 60px;
@@ -180,34 +185,34 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       display: none;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       line-height: 1.4;
-    `;
+    `
 
     // 找到视频的父容器
-    const videoContainer = this.findVideoContainer(this.targetVideo);
+    const videoContainer = this.findVideoContainer(this.targetVideo)
     if (videoContainer) {
       // 确保容器具有相对定位
       if (getComputedStyle(videoContainer).position === 'static') {
-        videoContainer.style.position = 'relative';
+        videoContainer.style.position = 'relative'
       }
-      videoContainer.appendChild(overlay);
+      videoContainer.appendChild(overlay)
     } else {
       // 后备方案：直接添加到body
-      overlay.style.position = 'fixed';
-      document.body.appendChild(overlay);
+      overlay.style.position = 'fixed'
+      document.body.appendChild(overlay)
     }
 
-    return overlay;
+    return overlay
   }
 
   /**
    * 同步字幕显示
    */
   syncSubtitles(currentTime: number): void {
-    const subtitle = this.getCurrentSubtitle(currentTime);
-    
+    const subtitle = this.getCurrentSubtitle(currentTime)
+
     if (subtitle !== this.currentSubtitle) {
-      this.currentSubtitle = subtitle;
-      this.updateOverlayDisplay();
+      this.currentSubtitle = subtitle
+      this.updateOverlayDisplay()
     }
   }
 
@@ -217,23 +222,23 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   getCurrentSubtitle(currentTime: number): SubtitleEntry | null {
     for (const entry of this.srtEntries) {
       if (currentTime >= entry.startTime && currentTime <= entry.endTime) {
-        return entry;
+        return entry
       }
     }
-    return null;
+    return null
   }
 
   /**
    * 更新覆盖层显示
    */
   private updateOverlayDisplay(): void {
-    if (!this.overlayElement) return;
+    if (!this.overlayElement) return
 
     if (this.currentSubtitle) {
-      this.overlayElement.innerHTML = this.formatSubtitleText(this.currentSubtitle.text);
-      this.overlayElement.style.display = 'block';
+      this.overlayElement.innerHTML = this.formatSubtitleText(this.currentSubtitle.text)
+      this.overlayElement.style.display = 'block'
     } else {
-      this.overlayElement.style.display = 'none';
+      this.overlayElement.style.display = 'none'
     }
   }
 
@@ -246,7 +251,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       .replace(/\n/g, '<br>')
       .replace(/<i>(.*?)<\/i>/g, '<em>$1</em>')
       .replace(/<b>(.*?)<\/b>/g, '<strong>$1</strong>')
-      .replace(/<u>(.*?)<\/u>/g, '<span style="text-decoration: underline">$1</span>');
+      .replace(/<u>(.*?)<\/u>/g, '<span style="text-decoration: underline">$1</span>')
   }
 
   /**
@@ -254,93 +259,118 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    */
   private readFileAsText(file: File): Promise<string> {
     return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsText(file, 'utf-8');
-    });
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = () => reject(reader.error)
+      reader.readAsText(file, 'utf-8')
+    })
   }
 
   /**
    * 解析SRT文件内容
    */
   private parseSRT(content: string): SubtitleEntry[] {
-    const entries: SubtitleEntry[] = [];
-    const blocks = content.trim().split(/\n\s*\n/);
+    const entries: SubtitleEntry[] = []
+    const blocks = content.trim().split(/\n\s*\n/)
 
     for (const block of blocks) {
-      const lines = block.trim().split('\n');
-      if (lines.length < 3) continue;
+      const lines = block.trim().split('\n')
+      if (lines.length < 3) continue
 
-      const index = parseInt(lines[0]);
-      const timeMatch = lines[1].match(/(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/);
-      
-      if (!timeMatch) continue;
+      const index = parseInt(lines[0])
+      const timeMatch = lines[1].match(
+        /(\d{2}):(\d{2}):(\d{2}),(\d{3}) --> (\d{2}):(\d{2}):(\d{2}),(\d{3})/
+      )
 
-      const startTime = this.parseTimeToSeconds(timeMatch[1], timeMatch[2], timeMatch[3], timeMatch[4]);
-      const endTime = this.parseTimeToSeconds(timeMatch[5], timeMatch[6], timeMatch[7], timeMatch[8]);
-      const text = lines.slice(2).join('\n');
+      if (!timeMatch) continue
+
+      const startTime = this.parseTimeToSeconds(
+        timeMatch[1],
+        timeMatch[2],
+        timeMatch[3],
+        timeMatch[4]
+      )
+      const endTime = this.parseTimeToSeconds(
+        timeMatch[5],
+        timeMatch[6],
+        timeMatch[7],
+        timeMatch[8]
+      )
+      const text = lines.slice(2).join('\n')
 
       entries.push({
         index,
         startTime,
         endTime,
-        text
-      });
+        text,
+      })
     }
 
-    return entries.sort((a, b) => a.startTime - b.startTime);
+    return entries.sort((a, b) => a.startTime - b.startTime)
   }
 
   /**
    * 将时间字符串转换为秒数
    */
-  private parseTimeToSeconds(hours: string, minutes: string, seconds: string, milliseconds: string): number {
-    return parseInt(hours) * 3600 + 
-           parseInt(minutes) * 60 + 
-           parseInt(seconds) + 
-           parseInt(milliseconds) / 1000;
+  private parseTimeToSeconds(
+    hours: string,
+    minutes: string,
+    seconds: string,
+    milliseconds: string
+  ): number {
+    return (
+      parseInt(hours) * 3600 +
+      parseInt(minutes) * 60 +
+      parseInt(seconds) +
+      parseInt(milliseconds) / 1000
+    )
   }
 
   /**
    * 寻找视频的容器元素
    */
   private findVideoContainer(video: HTMLVideoElement): HTMLElement | null {
-    let element = video.parentElement;
-    
+    let element = video.parentElement
+
     while (element) {
-      const style = getComputedStyle(element);
-      
+      const style = getComputedStyle(element)
+
       // 寻找具有定位属性的容器
       if (style.position === 'relative' || style.position === 'absolute') {
-        return element;
+        return element
       }
-      
+
       // 寻找视频播放器容器的常见类名
-      if (element.classList.contains('video-player') ||
-          element.classList.contains('player-container') ||
-          element.classList.contains('video-container')) {
-        return element;
+      if (
+        element.classList.contains('video-player') ||
+        element.classList.contains('player-container') ||
+        element.classList.contains('video-container')
+      ) {
+        return element
       }
-      
-      element = element.parentElement;
+
+      element = element.parentElement
     }
-    
-    return null;
+
+    return null
   }
 
   /**
    * 更新字幕样式
    */
-  updateStyles(styles: { fontSize: number; verticalPosition: number; backgroundOpacity: number }): void {
+  updateStyles(styles: {
+    fontSize: number
+    verticalPosition: number
+    backgroundOpacity: number
+  }): void {
     if (!this.overlayElement) return
 
     // 更新字体大小
     this.overlayElement.style.fontSize = `${styles.fontSize}px`
-    
+
     // 更新垂直位置
     this.overlayElement.style.bottom = `${styles.verticalPosition}px`
-    
+
     // 更新背景透明度
     const opacity = styles.backgroundOpacity / 100
     this.overlayElement.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`
@@ -355,17 +385,18 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    */
   getStats(): { totalEntries: number; duration: number; averageLength: number } {
     if (this.srtEntries.length === 0) {
-      return { totalEntries: 0, duration: 0, averageLength: 0 };
+      return { totalEntries: 0, duration: 0, averageLength: 0 }
     }
 
-    const lastEntry = this.srtEntries[this.srtEntries.length - 1];
-    const duration = lastEntry.endTime;
-    const averageLength = this.srtEntries.reduce((sum, entry) => sum + entry.text.length, 0) / this.srtEntries.length;
+    const lastEntry = this.srtEntries[this.srtEntries.length - 1]
+    const duration = lastEntry.endTime
+    const averageLength =
+      this.srtEntries.reduce((sum, entry) => sum + entry.text.length, 0) / this.srtEntries.length
 
     return {
       totalEntries: this.srtEntries.length,
       duration,
-      averageLength: Math.round(averageLength)
-    };
+      averageLength: Math.round(averageLength),
+    }
   }
 }
