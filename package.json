@@ -7,7 +7,8 @@
     "dev": "webpack --mode=development --watch",
     "type-check": "tsc --noEmit",
     "lint": "eslint src/**/*.{ts,tsx}",
-    "format": "prettier --write src/**/*.{ts,tsx,css}"
+    "format": "prettier --write src/**/*.{ts,tsx,css}",
+    "version": "node scripts/sync-version.js && git add manifest.json"
   },
   "dependencies": {
     "@patdx/kuromoji": "^1.0.4",
