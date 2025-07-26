@@ -29,18 +29,21 @@ class PopupManager {
   private verticalPositionValue: HTMLElement
   private backgroundOpacitySlider: HTMLInputElement
   private backgroundOpacityValue: HTMLElement
+  private timeOffsetSlider: HTMLInputElement
+  private timeOffsetInput: HTMLInputElement
   private resetStylesButton: HTMLButtonElement
 
   // State
   private savedCards: FlashCard[] = []
   private currentPage = 1
   private readonly cardsPerPage = 10
-  
+
   // Subtitle Style State
   private subtitleStyles = {
     fontSize: 16,
     verticalPosition: 60,
-    backgroundOpacity: 50
+    backgroundOpacity: 50,
+    timeOffset: 0.0,
   }
 
   constructor() {
@@ -52,24 +55,32 @@ class PopupManager {
     this.pageInfo = document.getElementById('page-info')!
     this.notification = document.getElementById('notification')!
     this.settingsButton = document.getElementById('settings-button') as HTMLButtonElement
-    this.customSubtitleButton = document.getElementById('custom-subtitle-button') as HTMLButtonElement
-    
+    this.customSubtitleButton = document.getElementById(
+      'custom-subtitle-button'
+    ) as HTMLButtonElement
+
     // Initialize new Tab system elements
     this.cardsTab = document.getElementById('cards-tab') as HTMLButtonElement
     this.subtitleTab = document.getElementById('subtitle-tab') as HTMLButtonElement
     this.cardsView = document.getElementById('cards-view')!
     this.subtitleView = document.getElementById('subtitle-view')!
     this.cardsStatsButton = document.getElementById('cards-stats-button') as HTMLButtonElement
-    
+
     // Initialize subtitle style elements
     this.fontSizeSlider = document.getElementById('font-size-slider') as HTMLInputElement
     this.fontSizeValue = document.getElementById('font-size-value')!
-    this.verticalPositionSlider = document.getElementById('vertical-position-slider') as HTMLInputElement
+    this.verticalPositionSlider = document.getElementById(
+      'vertical-position-slider'
+    ) as HTMLInputElement
     this.verticalPositionValue = document.getElementById('vertical-position-value')!
-    this.backgroundOpacitySlider = document.getElementById('background-opacity-slider') as HTMLInputElement
+    this.backgroundOpacitySlider = document.getElementById(
+      'background-opacity-slider'
+    ) as HTMLInputElement
     this.backgroundOpacityValue = document.getElementById('background-opacity-value')!
+    this.timeOffsetSlider = document.getElementById('time-offset-slider') as HTMLInputElement
+    this.timeOffsetInput = document.getElementById('time-offset-input') as HTMLInputElement
     this.resetStylesButton = document.getElementById('reset-subtitle-styles') as HTMLButtonElement
-    
+
     this.vocabLibraryManager = new VocabLibraryManager()
   }
 
@@ -87,11 +98,11 @@ class PopupManager {
     this.nextPageBtn.addEventListener('click', () => this.changePage(1))
     this.settingsButton.addEventListener('click', () => this.openOptions())
     this.customSubtitleButton.addEventListener('click', () => this.initiateVideoSelection())
-    
+
     // New Tab system listeners
     this.cardsTab.addEventListener('click', () => this.switchTab('cards'))
     this.subtitleTab.addEventListener('click', () => this.switchTab('subtitle'))
-    
+
     // New cards stats button listener
     this.cardsStatsButton.addEventListener('click', () => this.openLearnedWordsFromStats())
   }
@@ -266,16 +277,20 @@ class PopupManager {
   private switchTab(tab: 'cards' | 'subtitle'): void {
     // Update tab button styles
     if (tab === 'cards') {
-      this.cardsTab.className = 'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
-      this.subtitleTab.className = 'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
-      
+      this.cardsTab.className =
+        'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
+      this.subtitleTab.className =
+        'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
+
       // Show/hide views
       this.cardsView.classList.remove('hidden')
       this.subtitleView.classList.add('hidden')
     } else {
-      this.subtitleTab.className = 'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
-      this.cardsTab.className = 'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
-      
+      this.subtitleTab.className =
+        'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
+      this.cardsTab.className =
+        'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
+
       // Show/hide views
       this.subtitleView.classList.remove('hidden')
       this.cardsView.classList.add('hidden')
@@ -298,7 +313,9 @@ class PopupManager {
   private openLearnedWordsWithHighlight(word: string): void {
     // 在新标签页中打开已学词汇页面并高亮显示特定词汇
     chrome.tabs.create({
-      url: chrome.runtime.getURL('options/options.html') + `?view=learned-words&highlight=${encodeURIComponent(word)}`,
+      url:
+        chrome.runtime.getURL('options/options.html') +
+        `?view=learned-words&highlight=${encodeURIComponent(word)}`,
     })
   }
 
@@ -415,6 +432,32 @@ class PopupManager {
       this.applySubtitleStyles()
     })
 
+    // Time offset slider
+    this.timeOffsetSlider.addEventListener('input', () => {
+      this.subtitleStyles.timeOffset = parseFloat(this.timeOffsetSlider.value)
+      this.updateStyleUI()
+      this.saveSubtitleStyles()
+      this.applySubtitleStyles()
+    })
+
+    // Time offset input
+    this.timeOffsetInput.addEventListener('input', () => {
+      const value = parseFloat(this.timeOffsetInput.value) || 0
+      this.subtitleStyles.timeOffset = value
+
+      // Update slider if value is within range
+      if (value >= -15 && value <= 15) {
+        this.timeOffsetSlider.value = value.toString()
+      } else if (value < -15) {
+        this.timeOffsetSlider.value = '-15'
+      } else {
+        this.timeOffsetSlider.value = '15'
+      }
+
+      this.saveSubtitleStyles()
+      this.applySubtitleStyles()
+    })
+
     // Reset button
     this.resetStylesButton.addEventListener('click', () => {
       this.resetSubtitleStyles()
@@ -433,6 +476,9 @@ class PopupManager {
 
     this.backgroundOpacitySlider.value = this.subtitleStyles.backgroundOpacity.toString()
     this.backgroundOpacityValue.textContent = `${this.subtitleStyles.backgroundOpacity}%`
+
+    this.timeOffsetSlider.value = this.subtitleStyles.timeOffset.toString()
+    this.timeOffsetInput.value = this.subtitleStyles.timeOffset.toFixed(1)
   }
 
   /**
@@ -442,14 +488,14 @@ class PopupManager {
     try {
       // Get the currently active tab
       const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
-      
+
       if (activeTab?.id && activeTab.url && !activeTab.url.startsWith('chrome://')) {
         try {
           await chrome.tabs.sendMessage(activeTab.id, {
             type: 'UPDATE_SUBTITLE_STYLES',
-            styles: this.subtitleStyles
+            styles: this.subtitleStyles,
           })
-          
+
           console.log('Subtitle styles sent to active tab:', this.subtitleStyles)
         } catch (error) {
           // Content script might not be available in this tab
@@ -468,14 +514,14 @@ class PopupManager {
     this.subtitleStyles = {
       fontSize: 16,
       verticalPosition: 60,
-      backgroundOpacity: 50
+      backgroundOpacity: 50,
+      timeOffset: 0.0,
     }
     this.updateStyleUI()
     await this.saveSubtitleStyles()
     this.applySubtitleStyles()
     this.showNotification('字幕样式已重置', 'success')
   }
-
 }
 
 // 删除全局声明，不再需要
@@ -606,6 +652,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                            class="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer slider">
                     <span class="text-xs text-muted-foreground">不透明</span>
                     <span id="background-opacity-value" class="text-sm font-medium w-10 text-center">50%</span>
+                  </div>
+                </div>
+                
+                <!-- Time Offset -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">时间偏移</label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-muted-foreground">-15s</span>
+                    <input type="range" id="time-offset-slider" min="-15" max="15" step="0.1" value="0" 
+                           class="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer slider">
+                    <span class="text-xs text-muted-foreground">+15s</span>
+                    <input type="number" id="time-offset-input" step="0.1" value="0.0"
+                           class="text-sm font-medium w-16 text-center border rounded px-1">
                   </div>
                 </div>
                 
