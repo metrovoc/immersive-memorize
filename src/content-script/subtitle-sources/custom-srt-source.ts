@@ -28,6 +28,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   private timeUpdateHandler: (() => void) | null = null
   private debugMode: boolean
   private isInitialized: boolean = false
+  private timeOffset: number = 0
 
   constructor(debugMode: boolean = false) {
     this.debugMode = debugMode
@@ -220,8 +221,9 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    * 获取当前时间的字幕
    */
   getCurrentSubtitle(currentTime: number): SubtitleEntry | null {
+    const adjustedTime = currentTime + this.timeOffset
     for (const entry of this.srtEntries) {
-      if (currentTime >= entry.startTime && currentTime <= entry.endTime) {
+      if (adjustedTime >= entry.startTime && adjustedTime <= entry.endTime) {
         return entry
       }
     }
@@ -362,6 +364,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     fontSize: number
     verticalPosition: number
     backgroundOpacity: number
+    timeOffset?: number
   }): void {
     if (!this.overlayElement) return
 
@@ -374,6 +377,16 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     // 更新背景透明度
     const opacity = styles.backgroundOpacity / 100
     this.overlayElement.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`
+
+    // 更新时间偏移
+    if (styles.timeOffset !== undefined) {
+      this.timeOffset = styles.timeOffset
+
+      // 立即重新同步字幕
+      if (this.targetVideo) {
+        this.syncSubtitles(this.targetVideo.currentTime)
+      }
+    }
 
     if (this.debugMode) {
       console.log('[CustomSRTSubtitleSource] 样式已更新:', styles)
