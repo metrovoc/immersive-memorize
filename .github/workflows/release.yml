@@ -54,20 +54,64 @@ jobs:
           echo "=== ZIP Package Contents ==="
           unzip -l "immersive-memorize-${{ steps.get_version.outputs.version }}.zip"
 
-      - name: Generate release notes
+      - name: Generate release notes from changelog
         id: release_notes
         run: |
-          cat > release_notes.md << 'EOF'
-          ## Chrome Extension for Japanese Learning
+          VERSION=$(node -p "require('./manifest.json').version")
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
 
-          Learn Japanese vocabulary from Netflix with automatic flashcard generation.
+          echo "## 🎉 What's Changed in v${VERSION}" > release_notes.md
+          echo "" >> release_notes.md
 
-          ### Installation
-          1. Download `.zip` file
-          2. Extract and load in Chrome Extensions (Developer mode)
-          3. Configure JLPT vocabulary in options
-          4. Press hotkey (default: S) to learn words
-          EOF
+          # Extract current version changes from CHANGELOG.md
+          if [ -f "CHANGELOG.md" ]; then
+            echo "### ✨ Changes" >> release_notes.md
+            # Find the current version section and extract until next version or end
+            awk "/## \[v${VERSION}\]/{flag=1; next} /## \[v[0-9]/{flag=0} flag" CHANGELOG.md | \
+            sed 's/### Commits/### Changes/g' | \
+            sed '/^[[:space:]]*$/d' | \
+            head -20 >> release_notes.md
+            
+            # If no content was found, add fallback
+            if [ ! -s release_notes.md ] || [ $(wc -l < release_notes.md) -le 3 ]; then
+              echo "" >> release_notes.md
+              echo "- Version ${VERSION} released with new features and improvements" >> release_notes.md
+            fi
+          else
+            echo "### ✨ Changes" >> release_notes.md
+            echo "- Version ${VERSION} released with new features and improvements" >> release_notes.md
+          fi
+
+          echo "" >> release_notes.md
+          echo "---" >> release_notes.md
+          echo "" >> release_notes.md  
+          echo "## 📦 Chrome Extension for Japanese Learning" >> release_notes.md
+          echo "" >> release_notes.md
+          echo "Learn Japanese vocabulary from Netflix with automatic flashcard generation." >> release_notes.md
+          echo "" >> release_notes.md
+          echo "### 🔧 Installation Guide" >> release_notes.md
+          echo "1. Download the \`.zip\` file from the **Assets** section below" >> release_notes.md
+          echo "2. Extract the zip file to a folder" >> release_notes.md  
+          echo "3. Open Chrome and navigate to \`chrome://extensions/\`" >> release_notes.md
+          echo "4. Enable **Developer mode** (toggle in top right)" >> release_notes.md
+          echo "5. Click **Load unpacked** and select the extracted folder" >> release_notes.md
+          echo "6. Configure JLPT vocabulary levels in extension options" >> release_notes.md
+          echo "7. Press hotkey (default: **S**) while watching to learn vocabulary from subtitles" >> release_notes.md
+          echo "" >> release_notes.md
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "### 📋 Full Changelog" >> release_notes.md
+            echo "**Full Changelog**: https://github.com/\${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}" >> release_notes.md
+          else
+            echo "### 📋 Changelog" >> release_notes.md
+            echo "See [CHANGELOG.md](https://github.com/\${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history." >> release_notes.md
+          fi
+
+      - name: Preview generated release notes
+        run: |
+          echo "=== Generated Release Notes Preview ==="
+          cat release_notes.md
+          echo "======================================="
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
