@@ -1,8 +1,10 @@
 import '../globals.css'
+import './popup-styles.css'
 import type { FlashCard, ExtensionSettings } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
 
 class PopupManager {
+  // UI Elements
   private totalCardsSpan: HTMLElement
   private cardsList: HTMLElement
   private prevPageBtn: HTMLButtonElement
@@ -10,15 +12,39 @@ class PopupManager {
   private pageInfo: HTMLElement
   private notification: HTMLElement
   private settingsButton: HTMLButtonElement
-  private learnedWordsButton: HTMLButtonElement
   private customSubtitleButton: HTMLButtonElement
   private vocabLibraryManager: VocabLibraryManager
 
+  // Tab System Elements
+  private cardsTab: HTMLButtonElement
+  private subtitleTab: HTMLButtonElement
+  private cardsView: HTMLElement
+  private subtitleView: HTMLElement
+  private cardsStatsButton: HTMLButtonElement
+
+  // Subtitle Style Elements
+  private fontSizeSlider: HTMLInputElement
+  private fontSizeValue: HTMLElement
+  private verticalPositionSlider: HTMLInputElement
+  private verticalPositionValue: HTMLElement
+  private backgroundOpacitySlider: HTMLInputElement
+  private backgroundOpacityValue: HTMLElement
+  private resetStylesButton: HTMLButtonElement
+
+  // State
   private savedCards: FlashCard[] = []
   private currentPage = 1
   private readonly cardsPerPage = 10
+  
+  // Subtitle Style State
+  private subtitleStyles = {
+    fontSize: 16,
+    verticalPosition: 60,
+    backgroundOpacity: 50
+  }
 
   constructor() {
+    // Initialize existing elements
     this.totalCardsSpan = document.getElementById('total-cards')!
     this.cardsList = document.getElementById('cards-list')!
     this.prevPageBtn = document.getElementById('prev-page') as HTMLButtonElement
@@ -26,25 +52,48 @@ class PopupManager {
     this.pageInfo = document.getElementById('page-info')!
     this.notification = document.getElementById('notification')!
     this.settingsButton = document.getElementById('settings-button') as HTMLButtonElement
-    this.learnedWordsButton = document.getElementById('learned-words-button') as HTMLButtonElement
-    this.customSubtitleButton = document.getElementById(
-      'custom-subtitle-button'
-    ) as HTMLButtonElement
+    this.customSubtitleButton = document.getElementById('custom-subtitle-button') as HTMLButtonElement
+    
+    // Initialize new Tab system elements
+    this.cardsTab = document.getElementById('cards-tab') as HTMLButtonElement
+    this.subtitleTab = document.getElementById('subtitle-tab') as HTMLButtonElement
+    this.cardsView = document.getElementById('cards-view')!
+    this.subtitleView = document.getElementById('subtitle-view')!
+    this.cardsStatsButton = document.getElementById('cards-stats-button') as HTMLButtonElement
+    
+    // Initialize subtitle style elements
+    this.fontSizeSlider = document.getElementById('font-size-slider') as HTMLInputElement
+    this.fontSizeValue = document.getElementById('font-size-value')!
+    this.verticalPositionSlider = document.getElementById('vertical-position-slider') as HTMLInputElement
+    this.verticalPositionValue = document.getElementById('vertical-position-value')!
+    this.backgroundOpacitySlider = document.getElementById('background-opacity-slider') as HTMLInputElement
+    this.backgroundOpacityValue = document.getElementById('background-opacity-value')!
+    this.resetStylesButton = document.getElementById('reset-subtitle-styles') as HTMLButtonElement
+    
     this.vocabLibraryManager = new VocabLibraryManager()
   }
 
   async init(): Promise<void> {
     await this.vocabLibraryManager.init()
     await this.loadCards()
+    await this.loadSubtitleStyles()
     this.setupEventListeners()
+    this.setupSubtitleStyleListeners()
   }
 
   private setupEventListeners(): void {
+    // Existing pagination and action listeners
     this.prevPageBtn.addEventListener('click', () => this.changePage(-1))
     this.nextPageBtn.addEventListener('click', () => this.changePage(1))
     this.settingsButton.addEventListener('click', () => this.openOptions())
-    this.learnedWordsButton.addEventListener('click', () => this.openLearnedWords())
     this.customSubtitleButton.addEventListener('click', () => this.initiateVideoSelection())
+    
+    // New Tab system listeners
+    this.cardsTab.addEventListener('click', () => this.switchTab('cards'))
+    this.subtitleTab.addEventListener('click', () => this.switchTab('subtitle'))
+    
+    // New cards stats button listener
+    this.cardsStatsButton.addEventListener('click', () => this.openLearnedWordsFromStats())
   }
 
   private async loadCards(): Promise<void> {
@@ -89,9 +138,9 @@ class PopupManager {
     this.cardsList.innerHTML = pageCards
       .map(
         card => `
-      <div class="card border rounded-lg p-4 mb-3 bg-card hover:bg-accent/50 transition-colors group" data-id="${card.id}">
+      <div class="card border rounded-lg p-4 mb-3 bg-card hover:bg-accent/50 transition-colors group cursor-pointer" data-id="${card.id}">
         <div class="flex justify-between items-start gap-3">
-          <div class="flex-1 min-w-0">
+          <div class="flex-1 min-w-0 card-content" data-card-word="${this.escapeHtml(card.word)}">
             <div class="flex items-center gap-3 mb-2">
               <div class="font-bold text-lg text-primary">${this.escapeHtml(card.word)}</div>
               ${card.level ? `<div class="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">${card.level}</div>` : ''}
@@ -140,6 +189,15 @@ class PopupManager {
         e.stopPropagation()
         const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
         await this.deleteCard(cardId)
+      })
+    })
+
+    // 为卡片内容添加点击事件监听器（跳转到已学词汇页面）
+    this.cardsList.querySelectorAll('.card-content').forEach(content => {
+      content.addEventListener('click', e => {
+        e.stopPropagation()
+        const word = (e.currentTarget as HTMLElement).dataset.cardWord!
+        this.openLearnedWordsWithHighlight(word)
       })
     })
   }
@@ -202,10 +260,45 @@ class PopupManager {
     chrome.runtime.openOptionsPage()
   }
 
-  private openLearnedWords(): void {
+  /**
+   * Switch between tabs
+   */
+  private switchTab(tab: 'cards' | 'subtitle'): void {
+    // Update tab button styles
+    if (tab === 'cards') {
+      this.cardsTab.className = 'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
+      this.subtitleTab.className = 'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
+      
+      // Show/hide views
+      this.cardsView.classList.remove('hidden')
+      this.subtitleView.classList.add('hidden')
+    } else {
+      this.subtitleTab.className = 'tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm'
+      this.cardsTab.className = 'tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground'
+      
+      // Show/hide views
+      this.subtitleView.classList.remove('hidden')
+      this.cardsView.classList.add('hidden')
+    }
+  }
+
+  /**
+   * Open learned words from stats button (replaces old learnedWordsButton)
+   */
+  private openLearnedWordsFromStats(): void {
     // 在新标签页中打开已学词汇页面
     chrome.tabs.create({
       url: chrome.runtime.getURL('options/options.html') + '?view=learned-words',
+    })
+  }
+
+  /**
+   * Open learned words with specific word highlighted
+   */
+  private openLearnedWordsWithHighlight(word: string): void {
+    // 在新标签页中打开已学词汇页面并高亮显示特定词汇
+    chrome.tabs.create({
+      url: chrome.runtime.getURL('options/options.html') + `?view=learned-words&highlight=${encodeURIComponent(word)}`,
     })
   }
 
@@ -267,65 +360,268 @@ class PopupManager {
       this.notification.className = `fixed top-4 right-4 px-4 py-2 rounded-md text-sm font-medium z-50 transition-all duration-300 ${bgColor} opacity-0 translate-x-full`
     }, 3000)
   }
+
+  /**
+   * Load subtitle styles from storage
+   */
+  private async loadSubtitleStyles(): Promise<void> {
+    try {
+      const result = await chrome.storage.local.get(['subtitleStyles'])
+      if (result.subtitleStyles) {
+        this.subtitleStyles = { ...this.subtitleStyles, ...result.subtitleStyles }
+      }
+      this.updateStyleUI()
+    } catch (error) {
+      console.error('Failed to load subtitle styles:', error)
+    }
+  }
+
+  /**
+   * Save subtitle styles to storage
+   */
+  private async saveSubtitleStyles(): Promise<void> {
+    try {
+      await chrome.storage.local.set({ subtitleStyles: this.subtitleStyles })
+    } catch (error) {
+      console.error('Failed to save subtitle styles:', error)
+    }
+  }
+
+  /**
+   * Setup subtitle style event listeners
+   */
+  private setupSubtitleStyleListeners(): void {
+    // Font size slider
+    this.fontSizeSlider.addEventListener('input', () => {
+      this.subtitleStyles.fontSize = parseInt(this.fontSizeSlider.value)
+      this.updateStyleUI()
+      this.saveSubtitleStyles()
+      this.applySubtitleStyles()
+    })
+
+    // Vertical position slider
+    this.verticalPositionSlider.addEventListener('input', () => {
+      this.subtitleStyles.verticalPosition = parseInt(this.verticalPositionSlider.value)
+      this.updateStyleUI()
+      this.saveSubtitleStyles()
+      this.applySubtitleStyles()
+    })
+
+    // Background opacity slider
+    this.backgroundOpacitySlider.addEventListener('input', () => {
+      this.subtitleStyles.backgroundOpacity = parseInt(this.backgroundOpacitySlider.value)
+      this.updateStyleUI()
+      this.saveSubtitleStyles()
+      this.applySubtitleStyles()
+    })
+
+    // Reset button
+    this.resetStylesButton.addEventListener('click', () => {
+      this.resetSubtitleStyles()
+    })
+  }
+
+  /**
+   * Update style UI elements with current values
+   */
+  private updateStyleUI(): void {
+    this.fontSizeSlider.value = this.subtitleStyles.fontSize.toString()
+    this.fontSizeValue.textContent = `${this.subtitleStyles.fontSize}px`
+
+    this.verticalPositionSlider.value = this.subtitleStyles.verticalPosition.toString()
+    this.verticalPositionValue.textContent = `${this.subtitleStyles.verticalPosition}px`
+
+    this.backgroundOpacitySlider.value = this.subtitleStyles.backgroundOpacity.toString()
+    this.backgroundOpacityValue.textContent = `${this.subtitleStyles.backgroundOpacity}%`
+  }
+
+  /**
+   * Apply subtitle styles to the active custom subtitle
+   */
+  private async applySubtitleStyles(): Promise<void> {
+    try {
+      // Get the currently active tab
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (activeTab?.id && activeTab.url && !activeTab.url.startsWith('chrome://')) {
+        try {
+          await chrome.tabs.sendMessage(activeTab.id, {
+            type: 'UPDATE_SUBTITLE_STYLES',
+            styles: this.subtitleStyles
+          })
+          
+          console.log('Subtitle styles sent to active tab:', this.subtitleStyles)
+        } catch (error) {
+          // Content script might not be available in this tab
+          console.log('Content script not available for style update:', error)
+        }
+      }
+    } catch (error) {
+      console.log('Failed to apply subtitle styles:', error)
+    }
+  }
+
+  /**
+   * Reset subtitle styles to default values
+   */
+  private async resetSubtitleStyles(): Promise<void> {
+    this.subtitleStyles = {
+      fontSize: 16,
+      verticalPosition: 60,
+      backgroundOpacity: 50
+    }
+    this.updateStyleUI()
+    await this.saveSubtitleStyles()
+    this.applySubtitleStyles()
+    this.showNotification('字幕样式已重置', 'success')
+  }
+
 }
 
 // 删除全局声明，不再需要
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 创建现代化UI
+  // 创建新的NavBar + Tab架构UI
   const container = document.querySelector('.container')!
   container.innerHTML = `
-    <div class="space-y-4">
-      <header class="flex items-center justify-between pb-4 border-b">
-        <div class="flex items-center gap-2">
-          <button id="learned-words-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="已学词汇">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <div class="space-y-3">
+      <!-- Global Header -->
+      <header class="text-center py-2">
+        <h1 class="text-lg font-bold text-foreground">Immersive Memorize</h1>
+      </header>
+      
+      <!-- NavBar with Tabs -->
+      <nav class="flex items-center justify-between pb-3 border-b">
+        <!-- Tab Navigation -->
+        <div class="flex bg-muted rounded-lg p-1">
+          <button id="cards-tab" class="tab-button active inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors bg-background text-foreground shadow-sm">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
+            记忆卡片
+          </button>
+          <button id="subtitle-tab" class="tab-button inline-flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors hover:bg-accent/50 text-muted-foreground">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            字幕设置
           </button>
         </div>
         
-        <div class="text-center flex-1">
-          <h1 class="text-xl font-bold mb-1">Immersive Memorize</h1>
-          <div class="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium">
-            <span id="total-cards">0</span> 张记忆卡片
-          </div>
-        </div>
-        
-        <button id="settings-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 w-10" title="设置">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Settings Button -->
+        <button id="settings-button" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-9 w-9" title="设置">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
         </button>
-      </header>
+      </nav>
       
-      <div class="max-h-80 overflow-y-auto">
-        <div id="cards-list"></div>
-      </div>
-      
-      <div class="flex items-center justify-center gap-4 pt-4 border-t">
-        <button id="prev-page" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8" disabled>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <span id="page-info" class="text-sm text-muted-foreground min-w-[80px] text-center"></span>
-        <button id="next-page" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8" disabled>
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-          </svg>
-        </button>
-      </div>
-      
-      <div class="pt-4 border-t">
-        <button id="custom-subtitle-button" class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full">
-          <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          加载自定义字幕
-        </button>
+      <!-- Tab Content Areas -->
+      <div id="tab-content" class="min-h-[400px]">
+        <!-- Cards View -->
+        <div id="cards-view" class="tab-view space-y-4">
+          <!-- Cards Stats Header -->
+          <div class="text-center">
+            <button id="cards-stats-button" class="inline-flex items-center px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-medium hover:bg-primary/20 transition-colors cursor-pointer" title="查看详细统计">
+              <span id="total-cards">0</span> 张记忆卡片
+              <svg class="h-3 w-3 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+          
+          <!-- Cards List -->
+          <div class="max-h-80 overflow-y-auto">
+            <div id="cards-list"></div>
+          </div>
+          
+          <!-- Pagination -->
+          <div class="flex items-center justify-center gap-4 pt-4 border-t">
+            <button id="prev-page" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8" disabled>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <span id="page-info" class="text-sm text-muted-foreground min-w-[80px] text-center"></span>
+            <button id="next-page" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8" disabled>
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        
+        <!-- Subtitle View -->
+        <div id="subtitle-view" class="tab-view space-y-4 hidden">
+          <!-- Custom Subtitle Loading -->
+          <div class="space-y-4">
+            <div class="border rounded-lg p-4">
+              <h3 class="font-medium mb-3">自定义字幕</h3>
+              <button id="custom-subtitle-button" class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                加载自定义字幕
+              </button>
+            </div>
+            
+            <!-- Subtitle Style Settings -->
+            <div id="subtitle-style-settings" class="relative border rounded-lg p-4">
+              <h3 class="font-medium mb-4">样式设置</h3>
+              
+              <div class="space-y-4">
+                <!-- Font Size -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">字体大小</label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-muted-foreground">12px</span>
+                    <input type="range" id="font-size-slider" min="12" max="36" value="16" 
+                           class="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer slider">
+                    <span class="text-xs text-muted-foreground">36px</span>
+                    <span id="font-size-value" class="text-sm font-medium w-10 text-center">16px</span>
+                  </div>
+                </div>
+                
+                <!-- Vertical Position -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">垂直位置</label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-muted-foreground">上</span>
+                    <input type="range" id="vertical-position-slider" min="20" max="200" value="60" 
+                           class="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer slider">
+                    <span class="text-xs text-muted-foreground">下</span>
+                    <span id="vertical-position-value" class="text-sm font-medium w-12 text-center">60px</span>
+                  </div>
+                </div>
+                
+                <!-- Background Opacity -->
+                <div>
+                  <label class="text-sm font-medium mb-2 block">背景透明度</label>
+                  <div class="flex items-center gap-3">
+                    <span class="text-xs text-muted-foreground">透明</span>
+                    <input type="range" id="background-opacity-slider" min="0" max="100" value="50" 
+                           class="flex-1 h-2 bg-secondary rounded-lg appearance-none cursor-pointer slider">
+                    <span class="text-xs text-muted-foreground">不透明</span>
+                    <span id="background-opacity-value" class="text-sm font-medium w-10 text-center">50%</span>
+                  </div>
+                </div>
+                
+                <!-- Reset Button -->
+                <div class="pt-2 border-t">
+                  <button id="reset-subtitle-styles" class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    重置为默认值
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     

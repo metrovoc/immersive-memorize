@@ -330,6 +330,27 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   }
 
   /**
+   * 更新字幕样式
+   */
+  updateStyles(styles: { fontSize: number; verticalPosition: number; backgroundOpacity: number }): void {
+    if (!this.overlayElement) return
+
+    // 更新字体大小
+    this.overlayElement.style.fontSize = `${styles.fontSize}px`
+    
+    // 更新垂直位置
+    this.overlayElement.style.bottom = `${styles.verticalPosition}px`
+    
+    // 更新背景透明度
+    const opacity = styles.backgroundOpacity / 100
+    this.overlayElement.style.backgroundColor = `rgba(0, 0, 0, ${opacity})`
+
+    if (this.debugMode) {
+      console.log('[CustomSRTSubtitleSource] 样式已更新:', styles)
+    }
+  }
+
+  /**
    * 获取字幕统计信息
    */
   getStats(): { totalEntries: number; duration: number; averageLength: number } {
