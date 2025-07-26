@@ -60,52 +60,55 @@ jobs:
           VERSION=$(node -p "require('./manifest.json').version")
           PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
 
-          echo "## 🎉 What's Changed in v${VERSION}" > release_notes.md
-          echo "" >> release_notes.md
+          # Copy template file
+          cp .github/templates/release-notes.md release_notes.md
 
           # Extract current version changes from CHANGELOG.md
           if [ -f "CHANGELOG.md" ]; then
-            echo "### ✨ Changes" >> release_notes.md
             # Find the current version section and extract until next version or end
-            awk "/## \[v${VERSION}\]/{flag=1; next} /## \[v[0-9]/{flag=0} flag" CHANGELOG.md | \
-            sed 's/### Commits/### Changes/g' | \
-            sed '/^[[:space:]]*$/d' | \
-            head -20 >> release_notes.md
+            CHANGELOG_CONTENT=$(awk "/## \[v${VERSION}\]/{flag=1; next} /## \[v[0-9]/{flag=0} flag" CHANGELOG.md | \
+            sed 's/### Commits//g' | \
+            sed '/^[[:space:]]*$/d')
             
             # If no content was found, add fallback
-            if [ ! -s release_notes.md ] || [ $(wc -l < release_notes.md) -le 3 ]; then
-              echo "" >> release_notes.md
-              echo "- Version ${VERSION} released with new features and improvements" >> release_notes.md
+            if [ -z "$CHANGELOG_CONTENT" ]; then
+              CHANGELOG_CONTENT="- Version ${VERSION} released with new features and improvements"
             fi
           else
-            echo "### ✨ Changes" >> release_notes.md
-            echo "- Version ${VERSION} released with new features and improvements" >> release_notes.md
+            CHANGELOG_CONTENT="- Version ${VERSION} released with new features and improvements"
           fi
 
-          echo "" >> release_notes.md
-          echo "---" >> release_notes.md
-          echo "" >> release_notes.md  
-          echo "## 📦 Chrome Extension for Japanese Learning" >> release_notes.md
-          echo "" >> release_notes.md
-          echo "Learn Japanese vocabulary from Netflix with automatic flashcard generation." >> release_notes.md
-          echo "" >> release_notes.md
-          echo "### 🔧 Installation Guide" >> release_notes.md
-          echo "1. Download the \`.zip\` file from the **Assets** section below" >> release_notes.md
-          echo "2. Extract the zip file to a folder" >> release_notes.md  
-          echo "3. Open Chrome and navigate to \`chrome://extensions/\`" >> release_notes.md
-          echo "4. Enable **Developer mode** (toggle in top right)" >> release_notes.md
-          echo "5. Click **Load unpacked** and select the extracted folder" >> release_notes.md
-          echo "6. Configure JLPT vocabulary levels in extension options" >> release_notes.md
-          echo "7. Press hotkey (default: **S**) while watching to learn vocabulary from subtitles" >> release_notes.md
-          echo "" >> release_notes.md
+          # Replace placeholders in template using Python for reliable multiline handling
+          python3 << EOF
+          import re
 
-          if [ -n "$PREV_TAG" ]; then
-            echo "### 📋 Full Changelog" >> release_notes.md
-            echo "**Full Changelog**: https://github.com/\${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}" >> release_notes.md
-          else
-            echo "### 📋 Changelog" >> release_notes.md
-            echo "See [CHANGELOG.md](https://github.com/\${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history." >> release_notes.md
-          fi
+          # Read template
+          with open('release_notes.md', 'r') as f:
+              content = f.read()
+
+          # Replace VERSION
+          content = content.replace('{{VERSION}}', 'v${VERSION}')
+
+          # Replace CHANGELOG_CONTENT
+          changelog_content = '''${CHANGELOG_CONTENT}'''
+          content = content.replace('{{CHANGELOG_CONTENT}}', changelog_content)
+
+          # Replace CHANGELOG_LINK
+          if '${PREV_TAG}':
+              changelog_link = '''### 📋 Full Changelog
+
+          **Full Changelog**: https://github.com/\${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}'''
+          else:
+              changelog_link = '''### 📋 Changelog
+
+          See [CHANGELOG.md](https://github.com/\${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history.'''
+
+          content = content.replace('{{CHANGELOG_LINK}}', changelog_link)
+
+          # Write result
+          with open('release_notes.md', 'w') as f:
+              f.write(content)
+          EOF
 
       - name: Preview generated release notes
         run: |
