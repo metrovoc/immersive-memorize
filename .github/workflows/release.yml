@@ -97,11 +97,11 @@ jobs:
           if '${PREV_TAG}':
               changelog_link = '''### 📋 Full Changelog
 
-          **Full Changelog**: https://github.com/\${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}'''
+          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}'''
           else:
               changelog_link = '''### 📋 Changelog
 
-          See [CHANGELOG.md](https://github.com/\${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history.'''
+          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history.'''
 
           content = content.replace('{{CHANGELOG_LINK}}', changelog_link)
 
