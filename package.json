@@ -8,7 +8,8 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint src/**/*.{ts,tsx}",
     "format": "prettier --write src/**/*.{ts,tsx,css}",
-    "version": "node scripts/sync-version.js && git add manifest.json"
+    "changelog": "auto-changelog -p",
+    "version": "node scripts/sync-version.js && npm run changelog && git add manifest.json CHANGELOG.md"
   },
   "dependencies": {
     "@patdx/kuromoji": "^1.0.4",
@@ -26,6 +27,7 @@
     "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
+    "auto-changelog": "^2.5.0",
     "autoprefixer": "^10.4.16",
     "copy-webpack-plugin": "^12.0.2",
     "css-loader": "^6.9.1",
@@ -40,5 +42,14 @@
     "typescript": "^5.3.3",
     "webpack": "^5.89.0",
     "webpack-cli": "^5.1.4"
+  },
+  "auto-changelog": {
+    "output": "CHANGELOG.md",
+    "template": "keepachangelog",
+    "unreleased": true,
+    "commitLimit": 5,
+    "backfillLimit": 3,
+    "tagPattern": "v\\d+\\.\\d+\\.\\d+",
+    "hideCredit": true
   }
 }
