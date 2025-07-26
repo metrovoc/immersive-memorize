@@ -1,6 +1,6 @@
 {
   "name": "immersive-memorize",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Learn Japanese from streaming services like Netflix by creating contextual flashcards from subtitles",
   "scripts": {
     "build": "webpack --mode=production",
