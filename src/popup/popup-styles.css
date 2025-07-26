@@ -1,0 +1,88 @@
+/* Custom styles for popup sliders and other elements */
+
+/* Slider custom styles */
+.slider::-webkit-slider-thumb {
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  cursor: pointer;
+  border: 2px solid hsl(var(--background));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-webkit-slider-track {
+  height: 8px;
+  cursor: pointer;
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+}
+
+.slider:focus {
+  outline: none;
+}
+
+.slider:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px hsl(var(--ring));
+}
+
+/* Firefox */
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: hsl(var(--primary));
+  cursor: pointer;
+  border: 2px solid hsl(var(--background));
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.slider::-moz-range-track {
+  height: 8px;
+  cursor: pointer;
+  background: hsl(var(--secondary));
+  border-radius: 4px;
+  border: none;
+}
+
+/* Tab button active state animation */
+.tab-button {
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.tab-button.active {
+  transform: translateY(-1px);
+}
+
+/* Card hover effects */
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* Loading state for sliders */
+.slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Custom scrollbar for cards list */
+.max-h-80::-webkit-scrollbar {
+  width: 6px;
+}
+
+.max-h-80::-webkit-scrollbar-track {
+  background: hsl(var(--muted));
+  border-radius: 3px;
+}
+
+.max-h-80::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground));
+  border-radius: 3px;
+}
+
+.max-h-80::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--foreground));
+}

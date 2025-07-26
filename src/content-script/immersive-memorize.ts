@@ -433,11 +433,35 @@ export class ImmersiveMemorize {
             sendResponse({ success: false, error: error.message })
           })
         return true // Keep sendResponse alive for async response
+      } else if (request.type === 'UPDATE_SUBTITLE_STYLES') {
+        this.handleSubtitleStyleUpdate(request.styles)
+        sendResponse({ success: true })
+        return true
       }
     })
 
     if (this.debugMode) {
       console.log('[ImmersiveMemorizeV2] 消息监听器已设置')
+    }
+  }
+
+  /**
+   * 处理字幕样式更新请求
+   */
+  private handleSubtitleStyleUpdate(styles: any): void {
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 收到字幕样式更新:', styles)
+    }
+
+    // 检查当前是否使用自定义字幕源
+    if (this.activeSource && this.activeSource.name === 'Custom SRT') {
+      const customSource = this.activeSource as any // Cast to access custom methods
+      if (customSource.updateStyles) {
+        customSource.updateStyles(styles)
+        if (this.debugMode) {
+          console.log('[ImmersiveMemorizeV2] 字幕样式已更新')
+        }
+      }
     }
   }
 
