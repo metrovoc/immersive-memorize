@@ -5,7 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.8.3](https://github.com/metrovoc/immersive-memorize/compare/v0.8.3...v0.8.3)
+## [v0.8.4](https://github.com/metrovoc/immersive-memorize/compare/v0.8.3...v0.8.4)
+
+### Commits
+
+- feat: integrate auto-changelog for automated changelog generation [`559a0b2`](https://github.com/metrovoc/immersive-memorize/commit/559a0b2c2c9f2e9e9c68e3d6b47a0c89531ec49f)
 
 ## [v0.8.3](https://github.com/metrovoc/immersive-memorize/compare/v0.8.2...v0.8.3) - 2025-07-26
 
