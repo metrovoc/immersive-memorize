@@ -38,10 +38,12 @@ class OptionsManager {
     // 检查URL参数
     const urlParams = new URLSearchParams(window.location.search)
     const view = urlParams.get('view')
+    const highlight = urlParams.get('highlight')
     if (view === 'learned-words') {
       this.viewState = {
         mode: 'learned-words',
         breadcrumb: ['设置', '已学词汇'],
+        highlight: highlight || undefined, // 添加highlight参数支持
       }
     }
 
@@ -690,9 +692,14 @@ class OptionsManager {
                 <h3 class="text-lg font-semibold mb-4">${level} 等级 (${wordsByLevel[level].length} 个词汇)</h3>
                 <div class="grid gap-4">
                   ${wordsByLevel[level]
-                    .map(
-                      item => `
-                    <div class="vocab-card bg-card rounded-lg border p-4 hover:bg-accent/50 transition-colors group">
+                    .map(item => {
+                      const isHighlighted =
+                        this.viewState.highlight &&
+                        item.vocab.VocabKanji === this.viewState.highlight
+                      const highlightClass = isHighlighted ? 'highlighted-vocab' : ''
+                      const highlightAttr = isHighlighted ? 'data-highlighted="true"' : ''
+                      return `
+                    <div class="vocab-card bg-card rounded-lg border p-4 hover:bg-accent/50 transition-colors group ${highlightClass}" ${highlightAttr}>
                       <div class="flex items-start justify-between">
                         <div class="flex-1">
                           <div class="flex items-center gap-3 mb-2">
@@ -740,7 +747,7 @@ class OptionsManager {
                       </div>
                     </div>
                   `
-                    )
+                    })
                     .join('')}
                 </div>
               </div>
@@ -783,6 +790,11 @@ class OptionsManager {
           await this.deleteLearnedCard(cardId)
         })
       })
+
+      // 如果有高亮词汇，滚动到该位置
+      if (this.viewState.highlight) {
+        this.scrollToHighlightedWord()
+      }
     } catch (error) {
       console.error('渲染已学词汇失败:', error)
       this.mainContent.innerHTML = `
@@ -887,6 +899,70 @@ class OptionsManager {
     return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
+  private scrollToHighlightedWord(): void {
+    // 使用setTimeout确保DOM已经渲染完成
+    setTimeout(() => {
+      const highlightedElement = document.querySelector('[data-highlighted="true"]')
+      if (highlightedElement) {
+        highlightedElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
+
+        // 2.5秒后自动移除高亮效果
+        setTimeout(() => {
+          this.clearHighlight()
+        }, 2500)
+
+        // 添加键盘监听，按ESC键清除高亮
+        const handleKeyPress = (e: KeyboardEvent) => {
+          if (e.key === 'Escape') {
+            this.clearHighlight()
+            document.removeEventListener('keydown', handleKeyPress)
+          }
+        }
+        document.addEventListener('keydown', handleKeyPress)
+
+        // 点击高亮元素外的地方也清除高亮
+        const handleClickOutside = (e: MouseEvent) => {
+          if (!highlightedElement.contains(e.target as Node)) {
+            this.clearHighlight()
+            document.removeEventListener('click', handleClickOutside)
+            document.removeEventListener('keydown', handleKeyPress)
+          }
+        }
+        // 延迟添加点击监听，避免立即触发
+        setTimeout(() => {
+          document.addEventListener('click', handleClickOutside)
+        }, 100)
+      }
+    }, 100)
+  }
+
+  private clearHighlight(): void {
+    // 添加淡出动画
+    const highlightedElements = document.querySelectorAll('.highlighted-vocab')
+    highlightedElements.forEach(element => {
+      element.classList.add('removing')
+    })
+
+    // 600ms后完全移除高亮样式（与CSS transition时间一致）
+    setTimeout(() => {
+      highlightedElements.forEach(element => {
+        element.classList.remove('highlighted-vocab', 'removing')
+        element.removeAttribute('data-highlighted')
+      })
+    }, 600)
+
+    // 清除viewState中的highlight，避免重新渲染时再次高亮
+    this.viewState.highlight = undefined
+
+    // 更新URL，移除highlight参数
+    const url = new URL(window.location.href)
+    url.searchParams.delete('highlight')
+    window.history.replaceState({}, '', url.toString())
+  }
+
   private showNotification(
     message: string,
     type: 'success' | 'error' | 'warning' | 'info' = 'success'
@@ -987,6 +1063,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       .vocab-card:hover {
         box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+      
+      .highlighted-vocab {
+        border: 1px solid hsl(var(--primary)) !important;
+        background: hsl(var(--primary) / 0.1) !important;
+        box-shadow: 0 0 15px hsl(var(--primary) / 0.2);
+        animation: highlightGlow 3s ease-in-out;
+        transition: border-color 0.6s ease-out, background-color 0.6s ease-out, box-shadow 0.6s ease-out;
+      }
+      
+      .highlighted-vocab.removing {
+        border: 1px solid hsl(var(--border)) !important;
+        background: hsl(var(--card)) !important;
+        box-shadow: none !important;
+      }
+      
+      @keyframes highlightGlow {
+        0%, 100% { box-shadow: 0 0 15px hsl(var(--primary) / 0.2); }
+        50% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
       }
     </style>
   `

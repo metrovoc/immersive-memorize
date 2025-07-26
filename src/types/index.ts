@@ -1,25 +1,24 @@
-import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer';
+import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer'
 
-export type Word = AnalyzerWord;
+export type Word = AnalyzerWord
 
 export interface FlashCard {
-  id: number;
-  word: string; // This should be the lemma of the word
-  sentence: string;
-  timestamp: number;
-  screenshot: string;
-  sourceTitle: string;
-  createdAt: string;
-  level?: string; // JLPT level (N5, N4, N3, N2, N1)
-  definition?: string; // Word definition
-  reading?: string; // Word reading (furigana)
+  id: number
+  word: string // This should be the lemma of the word
+  sentence: string
+  timestamp: number
+  screenshot: string
+  sourceTitle: string
+  createdAt: string
+  level?: string // JLPT level (N5, N4, N3, N2, N1)
+  definition?: string // Word definition
+  reading?: string // Word reading (furigana)
   // Netflix详细信息
-  showTitle?: string; // 剧集名称
-  seasonNumber?: string; // 季数
-  episodeNumber?: string; // 集数
-  episodeTitle?: string; // 集标题
+  showTitle?: string // 剧集名称
+  seasonNumber?: string // 季数
+  episodeNumber?: string // 集数
+  episodeTitle?: string // 集标题
 }
-
 
 export interface VocabEntry {
   VocabKanji: string
@@ -57,7 +56,7 @@ export interface ExtensionSettings {
   jlptWordlist: string[]
   captureHotkey: string
   debugMode: boolean
-  enableScreenshot: boolean  // 新增：截图功能开关，默认false
+  enableScreenshot: boolean // 新增：截图功能开关，默认false
   savedCards: FlashCard[]
   vocabLibrarySettings: VocabLibrarySettings
   csvExportFormat: 'plain-text' | 'anki-html' | 'rich-text' // CSV导出格式设置
@@ -68,11 +67,17 @@ export interface NotificationType {
   type: 'success' | 'error' | 'warning' | 'info'
 }
 
-export type ViewMode = 'overview' | 'library-detail' | 'level-detail' | 'vocab-list' | 'learned-words'
+export type ViewMode =
+  | 'overview'
+  | 'library-detail'
+  | 'level-detail'
+  | 'vocab-list'
+  | 'learned-words'
 
 export interface ViewState {
   mode: ViewMode
   libraryId?: string
   level?: string
   breadcrumb: string[]
+  highlight?: string // Add highlight support for word highlighting
 }
