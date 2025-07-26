@@ -22,6 +22,8 @@ export class ImmersiveMemorize {
   private currentTargetWord: Word | null = null
   private currentTargetElement: HTMLElement | null = null
   private pageContextObserver: MutationObserver | null = null
+  private hotkeyHandler: ((e: KeyboardEvent) => void) | null = null
+  private isHotkeyEnabled: boolean = false
 
   private captureHotkey: string = 's'
   private debugMode: boolean = true
@@ -163,14 +165,18 @@ export class ImmersiveMemorize {
 
       if (this.activeSource.isReady()) {
         this.setupSubtitleObserver()
+        this.checkAndUpdateHotkeyStatus()
 
         if (this.debugMode) {
           console.log(`[ImmersiveMemorizeV2] 字幕源 ${this.activeSource.name} 已就绪`)
         }
+      } else {
+        this.disableHotkeyListener()
       }
     } catch (error) {
       console.error(`[ImmersiveMemorizeV2] 初始化字幕源 ${this.activeSource.name} 失败:`, error)
       this.activeSource = null
+      this.disableHotkeyListener()
     }
   }
 
@@ -189,7 +195,13 @@ export class ImmersiveMemorize {
    * 处理字幕容器
    */
   private async processSubtitleContainers(containers: HTMLElement[]): Promise<void> {
-    if (!this.subtitleProcessor || containers.length === 0) return
+    if (!this.subtitleProcessor || containers.length === 0) {
+      this.disableHotkeyListener()
+      return
+    }
+
+    // 确保在有有效字幕时启用快捷键
+    this.enableHotkeyListener()
 
     // 清除现有高亮
     this.clearAllHighlights()
@@ -269,6 +281,7 @@ export class ImmersiveMemorize {
       // 切换到自定义字幕源
       this.activeSource = this.customSource
       this.setupSubtitleObserver()
+      this.checkAndUpdateHotkeyStatus()
 
       if (this.debugMode) {
         const stats = this.customSource.getStats()
@@ -279,6 +292,7 @@ export class ImmersiveMemorize {
     } catch (error) {
       console.error('[ImmersiveMemorizeV2] 切换到自定义字幕模式失败:', error)
       this.showNotification('自定义字幕加载失败: ' + (error as Error).message, 'error')
+      this.disableHotkeyListener()
     }
   }
 
@@ -308,6 +322,7 @@ export class ImmersiveMemorize {
       this.showNotification(`已切换到${this.activeSource.name}`)
     } else {
       this.showNotification('当前网站不支持原生字幕', 'warning')
+      this.disableHotkeyListener()
     }
   }
 
@@ -335,7 +350,8 @@ export class ImmersiveMemorize {
    * 设置事件监听器
    */
   private setupEventListeners(): void {
-    const keyHandler = async (e: KeyboardEvent) => {
+    // 创建快捷键处理函数但不立即添加监听器
+    this.hotkeyHandler = async (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === this.captureHotkey.toLowerCase()) {
         if (!this.currentTargetWord) {
           this.showNotification('当前无生词可学习', 'info')
@@ -350,11 +366,57 @@ export class ImmersiveMemorize {
       }
     }
 
-    document.addEventListener('keydown', keyHandler, true)
-    window.addEventListener('keydown', keyHandler, true)
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 快捷键处理器已创建，等待字幕检测后启用')
+    }
+  }
+
+  /**
+   * 启用快捷键监听器
+   */
+  private enableHotkeyListener(): void {
+    if (this.isHotkeyEnabled || !this.hotkeyHandler) return
+
+    document.addEventListener('keydown', this.hotkeyHandler, true)
+    window.addEventListener('keydown', this.hotkeyHandler, true)
+    this.isHotkeyEnabled = true
 
     if (this.debugMode) {
-      console.log('[ImmersiveMemorizeV2] 事件监听器已设置')
+      console.log('[ImmersiveMemorizeV2] 快捷键监听器已启用')
+    }
+  }
+
+  /**
+   * 禁用快捷键监听器
+   */
+  private disableHotkeyListener(): void {
+    if (!this.isHotkeyEnabled || !this.hotkeyHandler) return
+
+    document.removeEventListener('keydown', this.hotkeyHandler, true)
+    window.removeEventListener('keydown', this.hotkeyHandler, true)
+    this.isHotkeyEnabled = false
+
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 快捷键监听器已禁用')
+    }
+  }
+
+  /**
+   * 检查并更新快捷键状态
+   */
+  private checkAndUpdateHotkeyStatus(): void {
+    if (!this.activeSource) {
+      this.disableHotkeyListener()
+      return
+    }
+
+    const hasValidSubtitles = this.activeSource.isReady() && 
+                             this.activeSource.detectSubtitleContainers().length > 0
+
+    if (hasValidSubtitles) {
+      this.enableHotkeyListener()
+    } else {
+      this.disableHotkeyListener()
     }
   }
 
@@ -1109,7 +1171,10 @@ export class ImmersiveMemorize {
    * 刷新当前字幕
    */
   private refreshCurrentSubtitles(): void {
-    if (!this.activeSource) return
+    if (!this.activeSource) {
+      this.disableHotkeyListener()
+      return
+    }
 
     const containers = this.activeSource.detectSubtitleContainers()
     this.processSubtitleContainers(containers)
@@ -1341,6 +1406,9 @@ export class ImmersiveMemorize {
    * 清理资源
    */
   cleanup(): void {
+    // 清理快捷键监听器
+    this.disableHotkeyListener()
+
     if (this.activeSource) {
       this.activeSource.cleanup()
     }
