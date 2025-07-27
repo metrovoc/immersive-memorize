@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📖 Documentation
+    url: https://github.com/metrovoc/immersive-memorize/blob/main/README.md
+    about: Please check our documentation for answers.
+  - name: ❓ Ask a Question
+    url: https://github.com/metrovoc/immersive-memorize/discussions/new
+    about: Please ask and answer questions here.
