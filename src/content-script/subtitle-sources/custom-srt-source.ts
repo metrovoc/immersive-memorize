@@ -187,26 +187,13 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
 
     const overlay = document.createElement('div')
     overlay.className = 'im-custom-subtitle-overlay'
-    overlay.style.cssText = `
-      position: absolute;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: 80%;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-      color: white;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 8px 16px;
-      border-radius: 8px;
-      z-index: 2147483647;
-      pointer-events: none;
-      display: none;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.4;
-    `
+
+    // 从存储中加载并应用样式
+    this.loadAndApplyStyles(overlay).then(() => {
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 自定义样式已应用')
+      }
+    })
 
     const videoContainer = this.findVideoContainer(this.targetVideo)
 
@@ -214,6 +201,9 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       if (this.debugMode) {
         console.log('[CustomSRTSubtitleSource] 使用视频容器定位')
       }
+      overlay.style.position = 'absolute'
+      overlay.style.left = '50%'
+      overlay.style.transform = 'translateX(-50%)'
 
       const originalPosition = getComputedStyle(videoContainer!).position
       if (originalPosition === 'static') {
@@ -227,20 +217,16 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
         console.log('[CustomSRTSubtitleSource] 使用固定定位作为后备方案')
       }
 
-      // 检查是否强制全屏模式
       if (this.forceFullscreenMode) {
         this.setupFullscreenPositioning(overlay)
         if (this.debugMode) {
           console.log('[CustomSRTSubtitleSource] 使用全屏字幕定位')
         }
       } else {
-        // 使用fixed定位，直接定位到视频上方
         this.setupFixedPositioning(overlay)
-        
-        // 设置动态更新监听器
         this.setupFixedPositionListeners()
       }
-      
+
       document.body.appendChild(overlay)
       this.isUsingFixedPositioning = true
     }
@@ -249,32 +235,121 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   }
 
   /**
+   * 从存储中加载并应用样式
+   */
+  private async loadAndApplyStyles(overlay: HTMLElement): Promise<void> {
+    try {
+      const styles = await this.getStoredStyles()
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 加载到存储的样式:', styles)
+      }
+
+      overlay.style.cssText = `
+        position: absolute;
+        bottom: ${styles.verticalPosition}px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 80%;
+        text-align: center;
+        font-size: ${styles.fontSize}px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        background-color: rgba(0, 0, 0, ${styles.backgroundOpacity / 100});
+        padding: 8px 16px;
+        border-radius: 8px;
+        z-index: 2147483647;
+        pointer-events: none;
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.4;
+      `
+      if (styles.timeOffset !== undefined) {
+        this.timeOffset = styles.timeOffset
+      }
+    } catch (error) {
+      if (this.debugMode) {
+        console.error('[CustomSRTSubtitleSource] 加载样式失败:', error)
+      }
+      // 应用默认样式作为后备
+      overlay.style.cssText = `
+        position: absolute;
+        bottom: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        max-width: 80%;
+        text-align: center;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 8px 16px;
+        border-radius: 8px;
+        z-index: 2147483647;
+        pointer-events: none;
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.4;
+      `
+    }
+  }
+
+  /**
+   * 获取存储的样式
+   */
+  private getStoredStyles(): Promise<{
+    fontSize: number
+    verticalPosition: number
+    backgroundOpacity: number
+    timeOffset: number
+  }> {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(
+        {
+          subtitleStyles: {
+            fontSize: 16,
+            verticalPosition: 60,
+            backgroundOpacity: 50,
+            timeOffset: 0,
+          },
+        },
+        (result) => {
+          resolve(result.subtitleStyles)
+        }
+      )
+    })
+  }
+
+  /**
    * 设置Fixed定位样式
    */
   private setupFixedPositioning(overlay: HTMLElement): void {
     if (!this.targetVideo) return
-    
-    const videoRect = this.targetVideo.getBoundingClientRect()
-    overlay.style.cssText = `
-      position: fixed;
-      left: ${videoRect.left + videoRect.width / 2}px;
-      top: ${videoRect.bottom - 80}px;
-      transform: translateX(-50%);
-      max-width: 80%;
-      text-align: center;
-      font-size: 16px;
-      font-weight: bold;
-      color: white;
-      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-      background-color: rgba(0, 0, 0, 0.5);
-      padding: 8px 16px;
-      border-radius: 8px;
-      z-index: 2147483647;
-      pointer-events: none;
-      display: none;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.4;
-    `
+
+    this.getStoredStyles().then((styles) => {
+      const videoRect = this.targetVideo!.getBoundingClientRect()
+      overlay.style.cssText = `
+        position: fixed;
+        left: ${videoRect.left + videoRect.width / 2}px;
+        top: ${videoRect.bottom - styles.verticalPosition - 20}px;
+        transform: translateX(-50%);
+        max-width: 80%;
+        text-align: center;
+        font-size: ${styles.fontSize}px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        background-color: rgba(0, 0, 0, ${styles.backgroundOpacity / 100});
+        padding: 8px 16px;
+        border-radius: 8px;
+        z-index: 2147483647;
+        pointer-events: none;
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.4;
+      `
+    })
   }
 
   /**
@@ -416,37 +491,39 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
    */
   private updateFixedPosition(): void {
     if (!this.overlayElement || !this.targetVideo || !this.isUsingFixedPositioning) return
-    
-    const videoRect = this.targetVideo.getBoundingClientRect()
-    
-    // 检查视频是否可见
-    if (videoRect.width === 0 || videoRect.height === 0) {
-      if (this.debugMode) {
-        console.log('[CustomSRTSubtitleSource] 视频不可见，跳过位置更新')
-      }
-      return
-    }
-    
-    const newLeft = videoRect.left + videoRect.width / 2
-    const newTop = videoRect.bottom - 80
-    
-    this.overlayElement.style.left = `${newLeft}px`
-    this.overlayElement.style.top = `${newTop}px`
-    
-    if (this.debugMode) {
-      console.log('[CustomSRTSubtitleSource] 位置已更新:', {
-        videoRect: {
-          left: videoRect.left,
-          top: videoRect.top,
-          width: videoRect.width,
-          height: videoRect.height
-        },
-        overlayPosition: {
-          left: newLeft,
-          top: newTop
+
+    this.getStoredStyles().then((styles) => {
+      const videoRect = this.targetVideo!.getBoundingClientRect()
+
+      // 检查视频是否可见
+      if (videoRect.width === 0 || videoRect.height === 0) {
+        if (this.debugMode) {
+          console.log('[CustomSRTSubtitleSource] 视频不可见，跳过位置更新')
         }
-      })
-    }
+        return
+      }
+
+      const newLeft = videoRect.left + videoRect.width / 2
+      const newTop = videoRect.bottom - styles.verticalPosition - 20
+
+      this.overlayElement!.style.left = `${newLeft}px`
+      this.overlayElement!.style.top = `${newTop}px`
+
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 位置已更新:', {
+          videoRect: {
+            left: videoRect.left,
+            top: videoRect.top,
+            width: videoRect.width,
+            height: videoRect.height,
+          },
+          overlayPosition: {
+            left: newLeft,
+            top: newTop,
+          },
+        })
+      }
+    })
   }
 
   /**
