@@ -6,8 +6,8 @@
     "build": "webpack --mode=production",
     "dev": "webpack --mode=development --watch",
     "type-check": "tsc --noEmit",
-    "lint": "eslint src/**/*.{ts,tsx}",
-    "format": "prettier --write src/**/*.{ts,tsx,css}",
+    "lint": "eslint src/**/*.ts",
+    "format": "prettier --write src/**/*.{ts,css}",
     "changelog": "auto-changelog -p",
     "version": "node scripts/sync-version.js && npm run changelog && git add manifest.json CHANGELOG.md"
   },
@@ -15,16 +15,11 @@
     "@patdx/kuromoji": "^1.0.4",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.0",
-    "lucide-react": "^0.263.1",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
     "tailwind-merge": "^2.2.1"
   },
   "devDependencies": {
     "@types/chrome": "^0.0.268",
     "@types/node": "^20.11.0",
-    "@types/react": "^18.2.48",
-    "@types/react-dom": "^18.2.18",
     "@typescript-eslint/eslint-plugin": "^6.19.0",
     "@typescript-eslint/parser": "^6.19.0",
     "auto-changelog": "^2.5.0",

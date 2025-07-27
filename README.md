@@ -175,6 +175,7 @@ cd immersive-memorize
 ## 🙏 致谢
 
 本项目的日语分词功能依赖 [kuromoji.js](https://github.com/patdx/kuromoji.js)
+
 本项目的JLPT数据提取自 egg rolls 提供的[anki卡组](https://github.com/5mdld/anki-jlpt-decks)
 
 <div align="center">
