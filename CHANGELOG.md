@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.8.8](https://github.com/metrovoc/immersive-memorize/compare/v0.8.7...v0.8.8)
+## [v0.8.9](https://github.com/metrovoc/immersive-memorize/compare/v0.8.8...v0.8.9)
+
+### Commits
+
+- fix : 去除多余选择器 [`02a92e4`](https://github.com/metrovoc/immersive-memorize/commit/02a92e497d49ea3cc4c0d48f4eaa11d098d6a021)
+- hotfix: 修复自定义字幕源的定位逻辑 [`738195f`](https://github.com/metrovoc/immersive-memorize/commit/738195f4d97c09c3c4a0294f96a223be27f691b4)
+- doc : update [`7886d8e`](https://github.com/metrovoc/immersive-memorize/commit/7886d8e5739b831e4be87e95f373b290d9e4e202)
+
+## [v0.8.8](https://github.com/metrovoc/immersive-memorize/compare/v0.8.7...v0.8.8) - 2025-07-27
 
 ### Commits
 
