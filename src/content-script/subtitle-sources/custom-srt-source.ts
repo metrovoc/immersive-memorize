@@ -35,8 +35,9 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   }
 
   canHandle(context: PageContext): boolean {
-    // 只要有视频元素就可以处理
-    return context.hasVideo
+    // 自定义字幕源需要用户主动激活，不应该在初始检测时激活
+    // 避免在每个iframe中触发重型资源加载
+    return false
   }
 
   async initialize(): Promise<void> {
