@@ -35,6 +35,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   private fullscreenHandler: (() => void) | null = null
   private orientationHandler: (() => void) | null = null
   private updateTimer: number | null = null
+  private forceFullscreenMode: boolean = false
 
   constructor(debugMode: boolean = false) {
     this.debugMode = debugMode
@@ -209,8 +210,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
 
     const videoContainer = this.findVideoContainer(this.targetVideo)
 
-    // 🧪 临时调试：强制使用Fixed定位
-    if (false && videoContainer) {
+    if (videoContainer) {
       if (this.debugMode) {
         console.log('[CustomSRTSubtitleSource] 使用视频容器定位')
       }
@@ -224,16 +224,25 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       this.isUsingFixedPositioning = false
     } else {
       if (this.debugMode) {
-        console.log('[CustomSRTSubtitleSource] 🧪 调试模式：强制使用fixed定位')
+        console.log('[CustomSRTSubtitleSource] 使用固定定位作为后备方案')
       }
 
-      // 使用fixed定位，直接定位到视频上方
-      this.setupFixedPositioning(overlay)
+      // 检查是否强制全屏模式
+      if (this.forceFullscreenMode) {
+        this.setupFullscreenPositioning(overlay)
+        if (this.debugMode) {
+          console.log('[CustomSRTSubtitleSource] 使用全屏字幕定位')
+        }
+      } else {
+        // 使用fixed定位，直接定位到视频上方
+        this.setupFixedPositioning(overlay)
+        
+        // 设置动态更新监听器
+        this.setupFixedPositionListeners()
+      }
+      
       document.body.appendChild(overlay)
       this.isUsingFixedPositioning = true
-      
-      // 设置动态更新监听器
-      this.setupFixedPositionListeners()
     }
 
     return overlay
@@ -266,6 +275,63 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       line-height: 1.4;
     `
+  }
+
+  /**
+   * 设置全屏字幕定位
+   */
+  private setupFullscreenPositioning(overlay: HTMLElement): void {
+    overlay.style.cssText = `
+      position: fixed;
+      left: 50%;
+      bottom: 120px;
+      transform: translateX(-50%);
+      max-width: 80%;
+      text-align: center;
+      font-size: 18px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 2147483647;
+      pointer-events: none;
+      display: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.4;
+    `
+  }
+
+  /**
+   * 设置强制全屏模式
+   */
+  setForceFullscreenMode(enabled: boolean): void {
+    if (this.forceFullscreenMode === enabled) return
+    
+    this.forceFullscreenMode = enabled
+    
+    if (this.debugMode) {
+      console.log('[CustomSRTSubtitleSource] 全屏模式:', enabled ? '启用' : '禁用')
+    }
+    
+    // 如果当前正在使用fixed定位，重新创建overlay
+    if (this.isUsingFixedPositioning && this.overlayElement) {
+      this.removeFixedPositionListeners()
+      
+      const wasVisible = this.overlayElement.style.display !== 'none'
+      const currentSubtitle = this.currentSubtitle
+      
+      // 重新创建overlay
+      this.overlayElement.remove()
+      this.overlayElement = this.createSubtitleOverlay()
+      
+      // 恢复显示状态
+      if (wasVisible && currentSubtitle) {
+        this.currentSubtitle = currentSubtitle
+        this.updateOverlayDisplay()
+      }
+    }
   }
 
   /**

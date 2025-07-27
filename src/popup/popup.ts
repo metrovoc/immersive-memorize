@@ -32,6 +32,7 @@ class PopupManager {
   private timeOffsetSlider: HTMLInputElement
   private timeOffsetInput: HTMLInputElement
   private resetStylesButton: HTMLButtonElement
+  private forceFullscreenCheckbox: HTMLInputElement
 
   // State
   private savedCards: FlashCard[] = []
@@ -45,6 +46,8 @@ class PopupManager {
     backgroundOpacity: 50,
     timeOffset: 0.0,
   }
+
+  private forceFullscreenMode = false
 
   constructor() {
     // Initialize existing elements
@@ -80,6 +83,7 @@ class PopupManager {
     this.timeOffsetSlider = document.getElementById('time-offset-slider') as HTMLInputElement
     this.timeOffsetInput = document.getElementById('time-offset-input') as HTMLInputElement
     this.resetStylesButton = document.getElementById('reset-subtitle-styles') as HTMLButtonElement
+    this.forceFullscreenCheckbox = document.getElementById('force-fullscreen-checkbox') as HTMLInputElement
 
     this.vocabLibraryManager = new VocabLibraryManager()
   }
@@ -88,6 +92,7 @@ class PopupManager {
     await this.vocabLibraryManager.init()
     await this.loadCards()
     await this.loadSubtitleStyles()
+    await this.loadForceFullscreenSetting()
     this.setupEventListeners()
     this.setupSubtitleStyleListeners()
   }
@@ -462,6 +467,11 @@ class PopupManager {
     this.resetStylesButton.addEventListener('click', () => {
       this.resetSubtitleStyles()
     })
+
+    // Force fullscreen checkbox
+    this.forceFullscreenCheckbox.addEventListener('change', () => {
+      this.handleForceFullscreenChange()
+    })
   }
 
   /**
@@ -521,6 +531,56 @@ class PopupManager {
     await this.saveSubtitleStyles()
     this.applySubtitleStyles()
     this.showNotification('字幕样式已重置', 'success')
+  }
+
+  /**
+   * 加载全屏模式设置
+   */
+  private async loadForceFullscreenSetting(): Promise<void> {
+    try {
+      const result = await chrome.storage.sync.get(['forceFullscreenMode'])
+      this.forceFullscreenMode = result.forceFullscreenMode || false
+      this.forceFullscreenCheckbox.checked = this.forceFullscreenMode
+    } catch (error) {
+      console.error('Failed to load force fullscreen setting:', error)
+    }
+  }
+
+  /**
+   * 保存全屏模式设置
+   */
+  private async saveForceFullscreenSetting(): Promise<void> {
+    try {
+      await chrome.storage.sync.set({ forceFullscreenMode: this.forceFullscreenMode })
+    } catch (error) {
+      console.error('Failed to save force fullscreen setting:', error)
+    }
+  }
+
+  /**
+   * 处理全屏模式切换
+   */
+  private async handleForceFullscreenChange(): Promise<void> {
+    this.forceFullscreenMode = this.forceFullscreenCheckbox.checked
+    await this.saveForceFullscreenSetting()
+    
+    // 通知content script更新设置
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      if (tab.id) {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: 'setForceFullscreenMode',
+          enabled: this.forceFullscreenMode
+        })
+      }
+    } catch (error) {
+      console.error('Failed to send force fullscreen setting to content script:', error)
+    }
+
+    this.showNotification(
+      this.forceFullscreenMode ? '已启用全屏字幕模式' : '已禁用全屏字幕模式',
+      'success'
+    )
   }
 }
 
@@ -668,8 +728,26 @@ document.addEventListener('DOMContentLoaded', async () => {
                   </div>
                 </div>
                 
-                <!-- Reset Button -->
+                <!-- Force Fullscreen Mode -->
                 <div class="pt-2 border-t">
+                  <label class="flex items-center gap-3 cursor-pointer group">
+                    <input type="checkbox" id="force-fullscreen-checkbox" class="rounded border-input text-primary focus:ring-ring focus:ring-offset-background">
+                    <div class="flex items-center gap-1.5">
+                      <span class="text-sm font-medium">强制全屏字幕定位</span>
+                      <div class="relative group/tooltip">
+                        <svg class="h-4 w-4 text-muted-foreground hover:text-foreground cursor-help" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div class="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 text-xs text-white bg-gray-900 rounded-md whitespace-nowrap opacity-0 group-hover/tooltip:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                          如果字幕位置不正确或无法显示，<br>可尝试启用此选项，字幕将显示在屏幕底部
+                        </div>
+                      </div>
+                    </div>
+                  </label>
+                </div>
+                
+                <!-- Reset Button -->
+                <div class="pt-2">
                   <button id="reset-subtitle-styles" class="inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 w-full">
                     <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />

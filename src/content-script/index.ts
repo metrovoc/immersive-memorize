@@ -144,6 +144,10 @@ class Application {
   switchToNativeMode() {
     return this.immersiveMemorize.switchToNativeSubtitleMode()
   }
+
+  setForceFullscreenMode(enabled: boolean) {
+    return this.immersiveMemorize.setForceFullscreenMode(enabled)
+  }
 }
 
 // 创建全局应用实例
