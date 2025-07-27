@@ -458,6 +458,10 @@ export class ImmersiveMemorize {
         this.handleSubtitleStyleUpdate(request.styles)
         sendResponse({ success: true })
         return true
+      } else if (request.action === 'setForceFullscreenMode') {
+        this.setForceFullscreenMode(request.enabled)
+        sendResponse({ success: true })
+        return true
       }
     })
 
@@ -1451,6 +1455,15 @@ export class ImmersiveMemorize {
       isReady: this.activeSource?.isReady() || false,
       learnedWordsCount: this.learnedWords.size,
       availableSources: availableSources.map(s => s.name),
+    }
+  }
+
+  /**
+   * 设置强制全屏字幕模式
+   */
+  setForceFullscreenMode(enabled: boolean): void {
+    if (this.customSource) {
+      this.customSource.setForceFullscreenMode(enabled)
     }
   }
 
