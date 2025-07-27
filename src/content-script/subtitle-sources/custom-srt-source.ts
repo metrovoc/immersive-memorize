@@ -165,6 +165,10 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     if (!this.targetVideo) {
       throw new Error('必须先设置目标视频元素')
     }
+    
+    if (this.debugMode) {
+      console.log('[CustomSRTSubtitleSource] 创建字幕覆盖层')
+    }
 
     const overlay = document.createElement('div')
     overlay.className = 'im-custom-subtitle-overlay'
@@ -189,17 +193,47 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       line-height: 1.4;
     `
 
-    // 找到视频的父容器
     const videoContainer = this.findVideoContainer(this.targetVideo)
+    
     if (videoContainer) {
-      // 确保容器具有相对定位
-      if (getComputedStyle(videoContainer).position === 'static') {
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 使用视频容器定位')
+      }
+      
+      const originalPosition = getComputedStyle(videoContainer).position
+      if (originalPosition === 'static') {
         videoContainer.style.position = 'relative'
       }
+      
       videoContainer.appendChild(overlay)
+      
     } else {
-      // 后备方案：直接添加到body
-      overlay.style.position = 'fixed'
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 使用fixed定位作为后备方案')
+      }
+      
+      // 使用fixed定位，直接定位到视频上方
+      const videoRect = this.targetVideo.getBoundingClientRect()
+      overlay.style.cssText = `
+        position: fixed;
+        left: ${videoRect.left + videoRect.width/2}px;
+        top: ${videoRect.bottom - 80}px;
+        transform: translateX(-50%);
+        max-width: 80%;
+        text-align: center;
+        font-size: 16px;
+        font-weight: bold;
+        color: white;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+        background-color: rgba(0, 0, 0, 0.5);
+        padding: 8px 16px;
+        border-radius: 8px;
+        z-index: 2147483647;
+        pointer-events: none;
+        display: none;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        line-height: 1.4;
+      `
       document.body.appendChild(overlay)
     }
 
@@ -335,20 +369,26 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   private findVideoContainer(video: HTMLVideoElement): HTMLElement | null {
     let element = video.parentElement
 
-    while (element) {
+    while (element && element !== document.body) {
       const style = getComputedStyle(element)
+      const rect = element.getBoundingClientRect()
 
-      // 寻找具有定位属性的容器
-      if (style.position === 'relative' || style.position === 'absolute') {
+      // 优先选择有实际尺寸且能包含视频的容器
+      if (rect.width > 0 && rect.height > 0 && 
+          rect.width >= video.clientWidth * 0.8 &&
+          rect.height >= video.clientHeight * 0.8) {
+        if (this.debugMode) {
+          console.log('[CustomSRTSubtitleSource] 找到合适尺寸的容器:', element.tagName, element.className)
+        }
         return element
       }
 
-      // 寻找视频播放器容器的常见类名
-      if (
-        element.classList.contains('video-player') ||
-        element.classList.contains('player-container') ||
-        element.classList.contains('video-container')
-      ) {
+      // 回退：寻找具有定位属性的容器（但只有在有尺寸的情况下）
+      if ((style.position === 'relative' || style.position === 'absolute') &&
+          rect.width > 0 && rect.height > 0) {
+        if (this.debugMode) {
+          console.log('[CustomSRTSubtitleSource] 找到有定位且有尺寸的容器:', element.tagName, element.className)
+        }
         return element
       }
 
