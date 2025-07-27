@@ -29,6 +29,12 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
   private debugMode: boolean
   private isInitialized: boolean = false
   private timeOffset: number = 0
+  private isUsingFixedPositioning: boolean = false
+  private resizeHandler: (() => void) | null = null
+  private scrollHandler: (() => void) | null = null
+  private fullscreenHandler: (() => void) | null = null
+  private orientationHandler: (() => void) | null = null
+  private updateTimer: number | null = null
 
   constructor(debugMode: boolean = false) {
     this.debugMode = debugMode
@@ -107,10 +113,14 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     this.timeUpdateHandler = null
     this.currentSubtitle = null
 
+    // 清理Fixed定位监听器
+    this.removeFixedPositionListeners()
+
     // Reset all state to allow fresh reload
     this.srtEntries = []
     this.targetVideo = null
     this.isInitialized = false
+    this.isUsingFixedPositioning = false
 
     if (this.debugMode) {
       console.log('[CustomSRTSubtitleSource] 清理完成')
@@ -147,6 +157,10 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
 
     this.targetVideo = video
 
+    // 清理固定定位监听器
+    this.removeFixedPositionListeners()
+    this.isUsingFixedPositioning = false
+
     // 重新创建覆盖层
     if (this.overlayElement) {
       this.overlayElement.remove()
@@ -165,7 +179,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     if (!this.targetVideo) {
       throw new Error('必须先设置目标视频元素')
     }
-    
+
     if (this.debugMode) {
       console.log('[CustomSRTSubtitleSource] 创建字幕覆盖层')
     }
@@ -186,7 +200,7 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       background-color: rgba(0, 0, 0, 0.5);
       padding: 8px 16px;
       border-radius: 8px;
-      z-index: 1000;
+      z-index: 2147483647;
       pointer-events: none;
       display: none;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -194,50 +208,210 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
     `
 
     const videoContainer = this.findVideoContainer(this.targetVideo)
-    
-    if (videoContainer) {
+
+    // 🧪 临时调试：强制使用Fixed定位
+    if (false && videoContainer) {
       if (this.debugMode) {
         console.log('[CustomSRTSubtitleSource] 使用视频容器定位')
       }
-      
-      const originalPosition = getComputedStyle(videoContainer).position
+
+      const originalPosition = getComputedStyle(videoContainer!).position
       if (originalPosition === 'static') {
-        videoContainer.style.position = 'relative'
+        videoContainer!.style.position = 'relative'
       }
-      
-      videoContainer.appendChild(overlay)
-      
+
+      videoContainer!.appendChild(overlay)
+      this.isUsingFixedPositioning = false
     } else {
       if (this.debugMode) {
-        console.log('[CustomSRTSubtitleSource] 使用fixed定位作为后备方案')
+        console.log('[CustomSRTSubtitleSource] 🧪 调试模式：强制使用fixed定位')
       }
-      
+
       // 使用fixed定位，直接定位到视频上方
-      const videoRect = this.targetVideo.getBoundingClientRect()
-      overlay.style.cssText = `
-        position: fixed;
-        left: ${videoRect.left + videoRect.width/2}px;
-        top: ${videoRect.bottom - 80}px;
-        transform: translateX(-50%);
-        max-width: 80%;
-        text-align: center;
-        font-size: 16px;
-        font-weight: bold;
-        color: white;
-        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
-        background-color: rgba(0, 0, 0, 0.5);
-        padding: 8px 16px;
-        border-radius: 8px;
-        z-index: 2147483647;
-        pointer-events: none;
-        display: none;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        line-height: 1.4;
-      `
+      this.setupFixedPositioning(overlay)
       document.body.appendChild(overlay)
+      this.isUsingFixedPositioning = true
+      
+      // 设置动态更新监听器
+      this.setupFixedPositionListeners()
     }
 
     return overlay
+  }
+
+  /**
+   * 设置Fixed定位样式
+   */
+  private setupFixedPositioning(overlay: HTMLElement): void {
+    if (!this.targetVideo) return
+    
+    const videoRect = this.targetVideo.getBoundingClientRect()
+    overlay.style.cssText = `
+      position: fixed;
+      left: ${videoRect.left + videoRect.width / 2}px;
+      top: ${videoRect.bottom - 80}px;
+      transform: translateX(-50%);
+      max-width: 80%;
+      text-align: center;
+      font-size: 16px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      background-color: rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      border-radius: 8px;
+      z-index: 2147483647;
+      pointer-events: none;
+      display: none;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.4;
+    `
+  }
+
+  /**
+   * 设置Fixed定位的事件监听器
+   */
+  private setupFixedPositionListeners(): void {
+    // 清理现有监听器
+    this.removeFixedPositionListeners()
+    
+    // 防抖更新函数
+    const debouncedUpdate = () => {
+      if (this.updateTimer) {
+        clearTimeout(this.updateTimer)
+      }
+      this.updateTimer = window.setTimeout(() => {
+        if (this.isUsingFixedPositioning && this.overlayElement) {
+          // 使用 requestAnimationFrame 确保DOM更新完成
+          requestAnimationFrame(() => {
+            this.updateFixedPosition()
+          })
+        }
+      }, 16) // ~60fps
+    }
+    
+    // 窗口尺寸变化
+    this.resizeHandler = debouncedUpdate
+    
+    // 页面滚动
+    this.scrollHandler = debouncedUpdate
+    
+    // 全屏状态变化
+    this.fullscreenHandler = () => {
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 全屏状态变化')
+      }
+      // 全屏变化需要稍微延迟，因为浏览器需要时间重新布局
+      setTimeout(() => {
+        if (this.isUsingFixedPositioning && this.overlayElement) {
+          this.updateFixedPosition()
+        }
+      }, 100)
+    }
+    
+    // 设备方向变化（移动设备）
+    this.orientationHandler = debouncedUpdate
+    
+    // 添加所有监听器
+    window.addEventListener('resize', this.resizeHandler)
+    window.addEventListener('scroll', this.scrollHandler, { passive: true })
+    document.addEventListener('fullscreenchange', this.fullscreenHandler)
+    window.addEventListener('orientationchange', this.orientationHandler)
+    
+    // 定期检查视频位置（保险措施）
+    const periodicCheck = () => {
+      if (this.isUsingFixedPositioning && this.overlayElement && this.targetVideo) {
+        const rect = this.targetVideo.getBoundingClientRect()
+        const overlayRect = this.overlayElement.getBoundingClientRect()
+        
+        // 检查位置是否严重偏离
+        const expectedLeft = rect.left + rect.width / 2
+        const actualLeft = overlayRect.left + overlayRect.width / 2
+        
+        if (Math.abs(expectedLeft - actualLeft) > 50) {
+          if (this.debugMode) {
+            console.log('[CustomSRTSubtitleSource] 检测到位置偏离，重新定位')
+          }
+          this.updateFixedPosition()
+        }
+      }
+    }
+    
+    // 每2秒检查一次位置
+    this.updateTimer = window.setInterval(periodicCheck, 2000)
+    
+    if (this.debugMode) {
+      console.log('[CustomSRTSubtitleSource] 增强版Fixed定位监听器已设置')
+    }
+  }
+
+  /**
+   * 更新Fixed定位
+   */
+  private updateFixedPosition(): void {
+    if (!this.overlayElement || !this.targetVideo || !this.isUsingFixedPositioning) return
+    
+    const videoRect = this.targetVideo.getBoundingClientRect()
+    
+    // 检查视频是否可见
+    if (videoRect.width === 0 || videoRect.height === 0) {
+      if (this.debugMode) {
+        console.log('[CustomSRTSubtitleSource] 视频不可见，跳过位置更新')
+      }
+      return
+    }
+    
+    const newLeft = videoRect.left + videoRect.width / 2
+    const newTop = videoRect.bottom - 80
+    
+    this.overlayElement.style.left = `${newLeft}px`
+    this.overlayElement.style.top = `${newTop}px`
+    
+    if (this.debugMode) {
+      console.log('[CustomSRTSubtitleSource] 位置已更新:', {
+        videoRect: {
+          left: videoRect.left,
+          top: videoRect.top,
+          width: videoRect.width,
+          height: videoRect.height
+        },
+        overlayPosition: {
+          left: newLeft,
+          top: newTop
+        }
+      })
+    }
+  }
+
+  /**
+   * 移除Fixed定位监听器
+   */
+  private removeFixedPositionListeners(): void {
+    if (this.resizeHandler) {
+      window.removeEventListener('resize', this.resizeHandler)
+      this.resizeHandler = null
+    }
+    
+    if (this.scrollHandler) {
+      window.removeEventListener('scroll', this.scrollHandler)
+      this.scrollHandler = null
+    }
+    
+    if (this.fullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this.fullscreenHandler)
+      this.fullscreenHandler = null
+    }
+    
+    if (this.orientationHandler) {
+      window.removeEventListener('orientationchange', this.orientationHandler)
+      this.orientationHandler = null
+    }
+    
+    if (this.updateTimer) {
+      clearInterval(this.updateTimer)
+      clearTimeout(this.updateTimer)
+      this.updateTimer = null
+    }
   }
 
   /**
@@ -374,20 +548,34 @@ export class CustomSRTSubtitleSource implements ICustomSubtitleSource {
       const rect = element.getBoundingClientRect()
 
       // 优先选择有实际尺寸且能包含视频的容器
-      if (rect.width > 0 && rect.height > 0 && 
-          rect.width >= video.clientWidth * 0.8 &&
-          rect.height >= video.clientHeight * 0.8) {
+      if (
+        rect.width > 0 &&
+        rect.height > 0 &&
+        rect.width >= video.clientWidth * 0.8 &&
+        rect.height >= video.clientHeight * 0.8
+      ) {
         if (this.debugMode) {
-          console.log('[CustomSRTSubtitleSource] 找到合适尺寸的容器:', element.tagName, element.className)
+          console.log(
+            '[CustomSRTSubtitleSource] 找到合适尺寸的容器:',
+            element.tagName,
+            element.className
+          )
         }
         return element
       }
 
       // 回退：寻找具有定位属性的容器（但只有在有尺寸的情况下）
-      if ((style.position === 'relative' || style.position === 'absolute') &&
-          rect.width > 0 && rect.height > 0) {
+      if (
+        (style.position === 'relative' || style.position === 'absolute') &&
+        rect.width > 0 &&
+        rect.height > 0
+      ) {
         if (this.debugMode) {
-          console.log('[CustomSRTSubtitleSource] 找到有定位且有尺寸的容器:', element.tagName, element.className)
+          console.log(
+            '[CustomSRTSubtitleSource] 找到有定位且有尺寸的容器:',
+            element.tagName,
+            element.className
+          )
         }
         return element
       }
