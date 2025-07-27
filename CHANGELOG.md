@@ -5,7 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.8.9](https://github.com/metrovoc/immersive-memorize/compare/v0.8.8...v0.8.9)
+## [v0.8.10](https://github.com/metrovoc/immersive-memorize/compare/v0.8.9...v0.8.10)
+
+### Commits
+
+- fix: 优化字幕定位后备方案 [`ab08817`](https://github.com/metrovoc/immersive-memorize/commit/ab08817e0cce118d8e49ce88cf91c12829ee5a20)
+- feat: 添加强制全屏字幕模式功能 [`f197221`](https://github.com/metrovoc/immersive-memorize/commit/f197221023959d8e2ef128bf08c9f0df56b40969)
+
+## [v0.8.9](https://github.com/metrovoc/immersive-memorize/compare/v0.8.8...v0.8.9) - 2025-07-27
 
 ### Commits
 
