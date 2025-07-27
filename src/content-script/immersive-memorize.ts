@@ -38,7 +38,7 @@ export class ImmersiveMemorize {
     // 检测当前frame上下文
     this.isMainFrame = window.top === window
     this.frameContext = this.isMainFrame ? 'main' : 'iframe'
-    
+
     if (this.debugMode) {
       console.log(`[ImmersiveMemorizeV2] 初始化${this.frameContext}frame模式`)
     }
@@ -105,7 +105,7 @@ export class ImmersiveMemorize {
   private async initIFrameFeatures(): Promise<void> {
     // iframe：轻量功能，延迟加载重型资源
     // 只在真正需要时才加载词库和字幕处理器
-    
+
     // iframe只处理自己的视频和字幕
     await this.detectAndInitializeSubtitleSources()
     this.setupEventListeners()
@@ -163,7 +163,7 @@ export class ImmersiveMemorize {
     )
 
     this.heavyResourcesLoaded = true
-    
+
     if (this.debugMode) {
       console.log('[ImmersiveMemorizeV2] 重型资源加载完成')
     }
@@ -178,7 +178,7 @@ export class ImmersiveMemorize {
     try {
       // 在初始化字幕源前确保重型资源已加载
       await this.ensureHeavyResourcesLoaded()
-      
+
       await this.activeSource.initialize()
 
       if (this.activeSource.isReady()) {
@@ -288,7 +288,7 @@ export class ImmersiveMemorize {
     try {
       // 确保重型资源已加载
       await this.ensureHeavyResourcesLoaded()
-      
+
       // 清理当前字幕源
       if (this.activeSource) {
         this.activeSource.cleanup()
@@ -431,8 +431,8 @@ export class ImmersiveMemorize {
       return
     }
 
-    const hasValidSubtitles = this.activeSource.isReady() && 
-                             this.activeSource.detectSubtitleContainers().length > 0
+    const hasValidSubtitles =
+      this.activeSource.isReady() && this.activeSource.detectSubtitleContainers().length > 0
 
     if (hasValidSubtitles) {
       this.enableHotkeyListener()
@@ -510,14 +510,14 @@ export class ImmersiveMemorize {
    */
   private discoverVideoElements(): HTMLVideoElement[] {
     const videos = Array.from(document.querySelectorAll('video')) as HTMLVideoElement[]
-    
+
     if (this.debugMode) {
       console.log('[ImmersiveMemorizeV2] 主页面视频元素:', videos.length)
-      
+
       // 检查iframe中的视频
       const iframes = Array.from(document.querySelectorAll('iframe'))
       console.log('[ImmersiveMemorizeV2] 发现iframe数量:', iframes.length)
-      
+
       iframes.forEach((iframe, index) => {
         try {
           // 尝试访问iframe内容（可能会被同源策略阻止）
@@ -526,17 +526,24 @@ export class ImmersiveMemorize {
             const iframeVideos = Array.from(iframeDoc.querySelectorAll('video'))
             console.log(`[ImmersiveMemorizeV2] iframe ${index} 中的视频:`, iframeVideos.length)
             if (iframeVideos.length > 0) {
-              console.log(`[ImmersiveMemorizeV2] iframe ${index} 视频详情:`, iframeVideos.map(v => ({
-                src: v.src,
-                attributes: Array.from(v.attributes).map(attr => `${attr.name}="${attr.value}"`),
-                rect: v.getBoundingClientRect()
-              })))
+              console.log(
+                `[ImmersiveMemorizeV2] iframe ${index} 视频详情:`,
+                iframeVideos.map(v => ({
+                  src: v.src,
+                  attributes: Array.from(v.attributes).map(attr => `${attr.name}="${attr.value}"`),
+                  rect: v.getBoundingClientRect(),
+                }))
+              )
             }
           } else {
             console.log(`[ImmersiveMemorizeV2] iframe ${index} 无法访问（可能跨域）:`, iframe.src)
           }
         } catch (e) {
-          console.log(`[ImmersiveMemorizeV2] iframe ${index} 访问被阻止:`, (e as Error).message, iframe.src)
+          console.log(
+            `[ImmersiveMemorizeV2] iframe ${index} 访问被阻止:`,
+            (e as Error).message,
+            iframe.src
+          )
         }
       })
     }
@@ -1243,7 +1250,7 @@ export class ImmersiveMemorize {
 
       // 获取句子内容
       const sentenceElement = this.currentTargetElement.closest(
-        '.player-timedtext-text-container, .ltr-1472gpj, [data-uia="player-caption-text"], .im-custom-subtitle-overlay'
+        '.player-timedtext-text-container, .im-custom-subtitle-overlay'
       ) as HTMLElement | null
 
       let sentence = ''
