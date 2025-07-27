@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.8.7](https://github.com/metrovoc/immersive-memorize/compare/v0.8.6...v0.8.7)
+## [v0.8.8](https://github.com/metrovoc/immersive-memorize/compare/v0.8.7...v0.8.8)
+
+### Commits
+
+- doc: 新增错误报告和功能请求模板 [`8c5eefd`](https://github.com/metrovoc/immersive-memorize/commit/8c5eefda23afaa5a676dbc03da351cf1d07b9964)
+- doc : update issue templates [`c8d7ba0`](https://github.com/metrovoc/immersive-memorize/commit/c8d7ba08a10f17316e9556b2d23a3405730f56fe)
+- hotfix: 优化重型资源加载逻辑 [`f966c3f`](https://github.com/metrovoc/immersive-memorize/commit/f966c3f74767cd964b6f572495401c742a910eb2)
+
+## [v0.8.7](https://github.com/metrovoc/immersive-memorize/compare/v0.8.6...v0.8.7) - 2025-07-26
 
 ### Commits
 
