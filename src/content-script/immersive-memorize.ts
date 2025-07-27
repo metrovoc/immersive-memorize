@@ -24,6 +24,7 @@ export class ImmersiveMemorize {
   private pageContextObserver: MutationObserver | null = null
   private hotkeyHandler: ((e: KeyboardEvent) => void) | null = null
   private isHotkeyEnabled: boolean = false
+  private heavyResourcesLoaded: boolean = false
 
   private captureHotkey: string = 's'
   private debugMode: boolean = true
@@ -85,15 +86,8 @@ export class ImmersiveMemorize {
    * 初始化主frame功能
    */
   private async initMainFrameFeatures(): Promise<void> {
-    // 主frame：完整功能但不处理iframe内视频
-    await this.vocabLibraryManager.init()
-    await this.loadSettings()
-
-    this.subtitleProcessor = new SubtitleProcessor(
-      this.vocabLibraryManager,
-      this.learnedWords,
-      this.debugMode
-    )
+    // 主frame：立即加载完整功能（用户可能直接使用）
+    await this.ensureHeavyResourcesLoaded()
 
     // 只检测主frame的字幕源
     await this.detectAndInitializeSubtitleSources()
@@ -109,23 +103,16 @@ export class ImmersiveMemorize {
    * 初始化iframe功能
    */
   private async initIFrameFeatures(): Promise<void> {
-    // iframe：轻量功能，专注视频处理
-    await this.vocabLibraryManager.init()
-    await this.loadSettings()
-
-    this.subtitleProcessor = new SubtitleProcessor(
-      this.vocabLibraryManager,
-      this.learnedWords,
-      this.debugMode
-    )
-
+    // iframe：轻量功能，延迟加载重型资源
+    // 只在真正需要时才加载词库和字幕处理器
+    
     // iframe只处理自己的视频和字幕
     await this.detectAndInitializeSubtitleSources()
     this.setupEventListeners()
     this.setupStorageListener()
 
     if (this.debugMode) {
-      console.log('[ImmersiveMemorizeV2] iframe轻量模式，专注视频处理')
+      console.log('[ImmersiveMemorizeV2] iframe轻量模式，延迟加载重型资源')
     }
   }
 
@@ -155,12 +142,43 @@ export class ImmersiveMemorize {
   }
 
   /**
+   * 确保重型资源已加载
+   */
+  private async ensureHeavyResourcesLoaded(): Promise<void> {
+    if (this.heavyResourcesLoaded) return
+
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 开始加载重型资源...')
+    }
+
+    // 加载词库管理器（20MB词典）
+    await this.vocabLibraryManager.init()
+    await this.loadSettings()
+
+    // 创建字幕处理器（依赖日语分析器）
+    this.subtitleProcessor = new SubtitleProcessor(
+      this.vocabLibraryManager,
+      this.learnedWords,
+      this.debugMode
+    )
+
+    this.heavyResourcesLoaded = true
+    
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 重型资源加载完成')
+    }
+  }
+
+  /**
    * 初始化当前活跃的字幕源
    */
   private async initializeActiveSource(): Promise<void> {
     if (!this.activeSource) return
 
     try {
+      // 在初始化字幕源前确保重型资源已加载
+      await this.ensureHeavyResourcesLoaded()
+      
       await this.activeSource.initialize()
 
       if (this.activeSource.isReady()) {
@@ -268,6 +286,9 @@ export class ImmersiveMemorize {
    */
   async switchToCustomSubtitleMode(srtFile: File, targetVideo: HTMLVideoElement): Promise<void> {
     try {
+      // 确保重型资源已加载
+      await this.ensureHeavyResourcesLoaded()
+      
       // 清理当前字幕源
       if (this.activeSource) {
         this.activeSource.cleanup()
