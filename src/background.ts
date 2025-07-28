@@ -7,27 +7,72 @@ import { VocabLibraryService, type VocabRequest } from './background/vocab-libra
 const analyzerService = JapaneseAnalyzerService.getInstance()
 const vocabService = VocabLibraryService.getInstance()
 
+/**
+ * 预热服务的统一函数
+ */
+async function warmupServices(): Promise<void> {
+  console.log('[Background] 开始预热服务...')
+  try {
+    await Promise.all([
+      analyzerService.initialize(),
+      vocabService.initialize()
+    ])
+    console.log('[Background] 服务预热完成')
+  } catch (error) {
+    console.error('[Background] 预热服务失败:', error)
+  }
+}
+
 // Service Worker 启动时预热服务
 chrome.runtime.onStartup.addListener(() => {
-  console.log('[Background] Service Worker 启动，开始预热服务...')
-  Promise.all([
-    analyzerService.initialize(),
-    vocabService.initialize()
-  ]).catch(error => {
-    console.error('[Background] 预热服务失败:', error)
-  })
+  console.log('[Background] Service Worker 启动')
+  warmupServices()
 })
 
 // 扩展安装/更新时也进行预热
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[Background] 扩展安装/更新，开始预热服务...')
-  Promise.all([
-    analyzerService.initialize(),
-    vocabService.initialize()
-  ]).catch(error => {
-    console.error('[Background] 预热服务失败:', error)
-  })
+  console.log('[Background] 扩展安装/更新')
+  warmupServices()
 })
+
+// 设置空闲检测，在用户空闲时预热服务
+chrome.idle.setDetectionInterval(180) // 3分钟空闲时间
+
+chrome.idle.onStateChanged.addListener((newState) => {
+  console.log(`[Background] 用户状态变更: ${newState}`)
+  
+  if (newState === 'idle') {
+    // 用户空闲时预热服务，确保下次使用时快速响应
+    console.log('[Background] 用户空闲，主动预热服务')
+    warmupServices()
+  }
+})
+
+// 定期心跳机制，防止Service Worker休眠
+// 每2分钟发送一次心跳，保持服务活跃
+let heartbeatInterval: NodeJS.Timeout
+function startHeartbeat(): void {
+  if (heartbeatInterval) {
+    clearInterval(heartbeatInterval)
+  }
+  
+  heartbeatInterval = setInterval(() => {
+    // 发送轻量级状态检查，保持连接活跃
+    const analyzerStatus = analyzerService.getStatus()
+    const vocabStatus = vocabService.getStatus()
+    
+    console.log('[Background] 心跳检查 - 分析器:', analyzerStatus.initialized, '词库:', vocabStatus.initialized)
+    
+    // 如果服务未初始化，进行预热
+    if (!analyzerStatus.initialized || !vocabStatus.initialized) {
+      console.log('[Background] 心跳检查发现服务未初始化，开始预热')
+      warmupServices()
+    }
+  }, 120000) // 2分钟间隔
+}
+
+// 启动心跳
+startHeartbeat()
 
 /**
  * Handle video selection request from popup
