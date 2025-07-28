@@ -553,6 +553,10 @@ export class ImmersiveMemorize {
         this.setForceFullscreenMode(request.enabled)
         sendResponse({ success: true })
         return true
+      } else if (request.type === 'PING') {
+        // Respond to ping messages from background script to indicate script is running
+        sendResponse({ pong: true })
+        return true
       }
     })
 

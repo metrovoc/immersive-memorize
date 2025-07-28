@@ -165,6 +165,9 @@ class OptionsManager {
       case 'learned-words':
         await this.renderLearnedWords()
         break
+      case 'activation-settings':
+        await this.renderActivationSettings()
+        break
     }
   }
 
@@ -214,6 +217,19 @@ class OptionsManager {
               <h3 class="text-lg font-semibold mb-2">词汇库管理</h3>
               <p class="text-muted-foreground">选择和配置学习词汇库及等级设置</p>
               ${this.selectedLibrary ? `<p class="text-sm text-primary mt-1">当前: ${this.selectedLibrary.name}</p>` : ''}
+            </div>
+            <svg class="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+
+        <!-- 插件启动行为卡片 -->
+        <div class="bg-card rounded-lg border p-6 cursor-pointer hover:shadow-md transition-shadow" id="activation-behavior-card">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-lg font-semibold mb-2">插件启动行为</h3>
+              <p class="text-muted-foreground">配置插件在哪些网站自动启用或手动启用</p>
             </div>
             <svg class="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
@@ -377,6 +393,15 @@ class OptionsManager {
       this.viewState = {
         mode: 'library-detail',
         breadcrumb: ['设置', '词汇库管理'],
+      }
+      this.renderView()
+    })
+
+    // 添加插件启动行为卡片点击事件
+    document.getElementById('activation-behavior-card')?.addEventListener('click', () => {
+      this.viewState = {
+        mode: 'activation-settings',
+        breadcrumb: ['设置', '插件启动行为'],
       }
       this.renderView()
     })
@@ -1017,6 +1042,275 @@ class OptionsManager {
     } else {
       // 给用户反馈不支持的按键
       this.showNotification('请按字母键 (A-Z)', 'warning')
+    }
+  }
+
+  private async renderActivationSettings(): Promise<void> {
+    // Load current settings
+    const result = await chrome.storage.local.get(['activationSettings'])
+    const activationSettings = result.activationSettings || {
+      autoEnabledSites: ['*://*.netflix.com/*'],
+      globalAutoEnable: false,
+    }
+
+    this.mainContent.innerHTML = `
+      <div class="space-y-6">
+        <div class="text-center py-4">
+          <h2 class="text-2xl font-bold mb-2">插件启动行为</h2>
+          <p class="text-muted-foreground">配置插件在哪些网站自动启用，或设置全局自动启用</p>
+        </div>
+
+        <!-- Global Auto Enable Switch -->
+        <div class="bg-card rounded-lg border p-6">
+          <h3 class="text-lg font-semibold mb-4">全局设置</h3>
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium mb-1">在所有网站自动启用</div>
+              <div class="text-sm text-muted-foreground">启用后，插件将在所有网站自动加载，无需手动点击</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" id="global-auto-enable" ${activationSettings.globalAutoEnable ? 'checked' : ''} class="sr-only peer">
+              <div class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 dark:peer-focus:ring-blue-800 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
+            </label>
+          </div>
+        </div>
+
+        <!-- Auto-enabled Sites List -->
+        <div class="bg-card rounded-lg border p-6" id="sites-section" ${activationSettings.globalAutoEnable ? 'style="opacity: 0.5; pointer-events: none;"' : ''}>
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold">自动启用的网站</h3>
+            <button id="add-site-btn" class="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-3">
+              <svg class="h-4 w-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+              添加网站
+            </button>
+          </div>
+          
+          <p class="text-sm text-muted-foreground mb-4">
+            插件将在以下网站自动启用。支持通配符，例如 *://*.example.com/* 匹配 example.com 的所有子域名
+          </p>
+
+          <div id="sites-list" class="space-y-3">
+            ${activationSettings.autoEnabledSites
+              .map(
+                (site: string, index: number) => `
+              <div class="site-item flex items-center gap-3 p-3 bg-muted rounded-lg" data-index="${index}">
+                <input type="checkbox" checked class="site-enabled-checkbox h-4 w-4 rounded border border-primary text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <input type="text" value="${this.escapeHtml(site)}" class="site-url-input flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                <button class="delete-site-btn inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8">
+                  <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              </div>
+            `
+              )
+              .join('')}
+          </div>
+
+          ${
+            activationSettings.autoEnabledSites.length === 0
+              ? `
+            <div class="text-center py-8 text-muted-foreground">
+              <div class="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 9l3 3 3-3" />
+                </svg>
+              </div>
+              <p class="text-sm">暂无自动启用的网站</p>
+              <p class="text-xs mt-1">点击"添加网站"按钮开始配置</p>
+            </div>
+          `
+              : ''
+          }
+        </div>
+
+        <!-- Usage Instructions -->
+        <div class="bg-card rounded-lg border p-6">
+          <h3 class="text-lg font-semibold mb-3">使用说明</h3>
+          <div class="space-y-2 text-sm text-muted-foreground">
+            <div class="flex items-start gap-2">
+              <div class="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+              <div>
+                <strong>自动启用：</strong>插件会在指定网站自动加载，图标显示为蓝色
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+              <div>
+                <strong>手动启用：</strong>在其他网站，图标显示为灰色，点击图标即可启用
+              </div>
+            </div>
+            <div class="flex items-start gap-2">
+              <div class="w-2 h-2 rounded-full bg-primary mt-2 flex-shrink-0"></div>
+              <div>
+                <strong>URL 模式：</strong>支持通配符 * 匹配任意字符，例如：
+                <ul class="ml-4 mt-1 space-y-1">
+                  <li>• <code class="bg-muted px-1 rounded">*://*.netflix.com/*</code> - 匹配 Netflix 所有页面</li>
+                  <li>• <code class="bg-muted px-1 rounded">https://example.com/*</code> - 匹配 example.com 的所有 HTTPS 页面</li>
+                  <li>• <code class="bg-muted px-1 rounded">*://video.*.com/*</code> - 匹配所有 video.xxx.com 域名</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `
+
+    this.setupActivationSettingsEvents()
+  }
+
+  private setupActivationSettingsEvents(): void {
+    const globalAutoEnableCheckbox = document.getElementById(
+      'global-auto-enable'
+    ) as HTMLInputElement
+    const sitesSection = document.getElementById('sites-section')!
+    const addSiteBtn = document.getElementById('add-site-btn')!
+    const sitesList = document.getElementById('sites-list')!
+
+    // Global auto enable toggle
+    globalAutoEnableCheckbox?.addEventListener('change', async () => {
+      const enabled = globalAutoEnableCheckbox.checked
+
+      // Update UI
+      if (enabled) {
+        sitesSection.style.opacity = '0.5'
+        sitesSection.style.pointerEvents = 'none'
+      } else {
+        sitesSection.style.opacity = '1'
+        sitesSection.style.pointerEvents = 'auto'
+      }
+
+      // Save settings
+      await this.saveActivationSettings()
+      this.showNotification(enabled ? '已启用全局自动启用' : '已禁用全局自动启用', 'success')
+    })
+
+    // Add site button
+    addSiteBtn.addEventListener('click', () => {
+      this.addNewSiteRow()
+    })
+
+    // Setup existing site controls
+    this.setupSiteControls()
+  }
+
+  private addNewSiteRow(): void {
+    const sitesList = document.getElementById('sites-list')!
+    const newIndex = sitesList.children.length
+
+    const newSiteRow = document.createElement('div')
+    newSiteRow.className = 'site-item flex items-center gap-3 p-3 bg-muted rounded-lg'
+    newSiteRow.dataset.index = newIndex.toString()
+    newSiteRow.innerHTML = `
+      <input type="checkbox" checked class="site-enabled-checkbox h-4 w-4 rounded border border-primary text-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+      <input type="text" placeholder="例如: *://*.example.com/*" class="site-url-input flex-1 h-9 rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+      <button class="delete-site-btn inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-destructive/10 text-destructive h-8 w-8">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+        </svg>
+      </button>
+    `
+
+    sitesList.appendChild(newSiteRow)
+
+    // Focus on the new input
+    const newInput = newSiteRow.querySelector('.site-url-input') as HTMLInputElement
+    newInput.focus()
+
+    // Setup controls for the new row
+    this.setupSiteControls()
+  }
+
+  private setupSiteControls(): void {
+    // Remove existing listeners to avoid duplicates
+    document.querySelectorAll('.site-url-input').forEach(input => {
+      input.removeEventListener('input', this.handleSiteInputChange)
+      input.removeEventListener('blur', this.handleSiteInputBlur)
+    })
+
+    document.querySelectorAll('.site-enabled-checkbox').forEach(checkbox => {
+      checkbox.removeEventListener('change', this.handleSiteEnabledChange)
+    })
+
+    document.querySelectorAll('.delete-site-btn').forEach(btn => {
+      btn.removeEventListener('click', this.handleDeleteSite)
+    })
+
+    // Add new listeners
+    document.querySelectorAll('.site-url-input').forEach(input => {
+      input.addEventListener('input', this.handleSiteInputChange.bind(this))
+      input.addEventListener('blur', this.handleSiteInputBlur.bind(this))
+    })
+
+    document.querySelectorAll('.site-enabled-checkbox').forEach(checkbox => {
+      checkbox.addEventListener('change', this.handleSiteEnabledChange.bind(this))
+    })
+
+    document.querySelectorAll('.delete-site-btn').forEach(btn => {
+      btn.addEventListener('click', this.handleDeleteSite.bind(this))
+    })
+  }
+
+  private handleSiteInputChange = (e: Event) => {
+    // Real-time validation could be added here
+  }
+
+  private handleSiteInputBlur = async (e: Event) => {
+    await this.saveActivationSettings()
+  }
+
+  private handleSiteEnabledChange = async (e: Event) => {
+    await this.saveActivationSettings()
+  }
+
+  private handleDeleteSite = async (e: Event) => {
+    const btn = e.target as HTMLElement
+    const siteItem = btn.closest('.site-item') as HTMLElement
+
+    if (confirm('确定要删除这个网站配置吗？')) {
+      siteItem.remove()
+      await this.saveActivationSettings()
+      this.showNotification('网站配置已删除', 'success')
+    }
+  }
+
+  private async saveActivationSettings(): Promise<void> {
+    try {
+      const globalAutoEnable =
+        (document.getElementById('global-auto-enable') as HTMLInputElement)?.checked || false
+      const autoEnabledSites: string[] = []
+
+      document.querySelectorAll('.site-item').forEach(item => {
+        const checkbox = item.querySelector('.site-enabled-checkbox') as HTMLInputElement
+        const input = item.querySelector('.site-url-input') as HTMLInputElement
+
+        if (checkbox?.checked && input?.value.trim()) {
+          autoEnabledSites.push(input.value.trim())
+        }
+      })
+
+      const activationSettings = {
+        globalAutoEnable,
+        autoEnabledSites,
+      }
+
+      await chrome.storage.local.set({ activationSettings })
+
+      // Notify background script to update its configuration
+      chrome.runtime
+        .sendMessage({
+          type: 'UPDATE_ACTIVATION_SETTINGS',
+          settings: activationSettings,
+        })
+        .catch(err => {
+          console.error('Failed to notify background script:', err)
+        })
+    } catch (error) {
+      console.error('保存启动设置失败:', error)
+      this.showNotification('保存失败', 'error')
     }
   }
 }
