@@ -1,13 +1,9 @@
 import '../globals.css'
-import type {
-  ExtensionSettings,
-  VocabLibrary,
-  ViewState,
-  VocabEntry,
-} from '@/types'
+import type { ExtensionSettings, FlashCard, VocabLibrary, ViewState, VocabEntry } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
 import { CSVFormatter } from '@/lib/csv-formatter'
 import { storageService } from '@/lib/storage'
+import { ScreenshotRenderer } from '@/lib/screenshot-renderer'
 
 class OptionsManager {
   private vocabLibraryManager: VocabLibraryManager
@@ -630,7 +626,14 @@ class OptionsManager {
       const allLearnedCards = await this.vocabLibraryManager.getAllLearnedWords()
 
       // 按等级分组
-      const wordsByLevel: Record<string, { vocab: VocabEntry; card: { id: number; createdAt: string; sentence: string; sourceTitle: string; timestamp: number; }; learnedDate: string; }[]> = {}
+      const wordsByLevel: Record<
+        string,
+        {
+          vocab: VocabEntry
+          card: FlashCard
+          learnedDate: string
+        }[]
+      > = {}
 
       if (this.selectedLibrary) {
         for (const card of allLearnedCards) {
@@ -654,7 +657,7 @@ class OptionsManager {
                 Level: level,
                 VocabPitch: '',
                 VocabPoS: '',
-                Frequency: ''
+                Frequency: '',
               },
               card: card,
               learnedDate: card.createdAt || '未知',
@@ -732,6 +735,18 @@ class OptionsManager {
                           <div class="flex items-center gap-3 mb-2">
                             <div class="text-lg font-bold text-primary">${this.escapeHtml(item.vocab.VocabKanji)}</div>
                             <div class="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">${level}</div>
+                            ${
+                              ScreenshotRenderer.hasValidScreenshot(item.card.screenshot)
+                                ? `
+                              <button class="screenshot-icon-btn p-1 rounded hover:bg-accent transition-colors text-muted-foreground hover:text-primary" 
+                                      data-screenshot="${this.escapeHtml(item.card.screenshot)}"
+                                      data-card-id="${item.card.id}"
+                                      title="查看截图">
+                                ${ScreenshotRenderer.createScreenshotIcon()}
+                              </button>
+                            `
+                                : ''
+                            }
                           </div>
                           
                           ${
@@ -818,6 +833,26 @@ class OptionsManager {
         })
       })
 
+      // 为截图图标添加事件监听器
+      this.mainContent.querySelectorAll('.screenshot-icon-btn').forEach(btn => {
+        btn.addEventListener('mouseenter', (e: Event) => {
+          const target = e.currentTarget as HTMLElement
+          const screenshot = target.dataset.screenshot!
+          this.showScreenshotThumbnail(screenshot, target)
+        })
+
+        btn.addEventListener('mouseleave', () => {
+          this.hideScreenshotThumbnail()
+        })
+
+        btn.addEventListener('click', (e: Event) => {
+          e.stopPropagation()
+          const target = e.currentTarget as HTMLElement
+          const screenshot = target.dataset.screenshot!
+          this.showScreenshotModal(screenshot)
+        })
+      })
+
       // 如果有高亮词汇，滚动到该位置
       if (this.viewState.highlight) {
         this.scrollToHighlightedWord()
@@ -837,7 +872,7 @@ class OptionsManager {
     try {
       const [savedCards, csvExportSettings] = await Promise.all([
         storageService.getAllCards(),
-        chrome.storage.local.get(['csvExportFormat'])
+        chrome.storage.local.get(['csvExportFormat']),
       ])
       const userFormat = csvExportSettings.csvExportFormat || 'anki-html' // 使用用户设置的格式
 
@@ -986,6 +1021,166 @@ class OptionsManager {
     const url = new URL(window.location.href)
     url.searchParams.delete('highlight')
     window.history.replaceState({}, '', url.toString())
+  }
+
+  private showScreenshotThumbnail(screenshot: string, anchor: HTMLElement): void {
+    // 移除现有的缩略图
+    this.hideScreenshotThumbnail()
+
+    // 创建缩略图容器
+    const thumbnail = document.createElement('div')
+    thumbnail.id = 'screenshot-thumbnail'
+    thumbnail.className =
+      'fixed z-50 bg-background border rounded-lg shadow-lg p-2 pointer-events-none'
+    thumbnail.style.cssText = `
+      opacity: 0;
+      transition: opacity 0.2s ease-in-out;
+      max-width: 200px;
+      max-height: 150px;
+    `
+
+    // 创建图片元素
+    const img = ScreenshotRenderer.createImageElement(screenshot, {
+      className: 'w-full h-full object-contain rounded',
+      onLoad: () => {
+        thumbnail.style.opacity = '1'
+      },
+      onError: () => {
+        thumbnail.innerHTML = `
+          <div class="flex items-center justify-center w-32 h-24 text-muted-foreground text-sm">
+            <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            截图加载失败
+          </div>
+        `
+        thumbnail.style.opacity = '1'
+      },
+    })
+
+    thumbnail.appendChild(img)
+    document.body.appendChild(thumbnail)
+
+    // 定位缩略图
+    const rect = anchor.getBoundingClientRect()
+    const thumbnailRect = thumbnail.getBoundingClientRect()
+
+    let left = rect.right + 10
+    let top = rect.top
+
+    // 确保缩略图不超出视窗
+    if (left + thumbnailRect.width > window.innerWidth) {
+      left = rect.left - thumbnailRect.width - 10
+    }
+    if (top + thumbnailRect.height > window.innerHeight) {
+      top = window.innerHeight - thumbnailRect.height - 10
+    }
+
+    thumbnail.style.left = `${left}px`
+    thumbnail.style.top = `${top}px`
+  }
+
+  private hideScreenshotThumbnail(): void {
+    const thumbnail = document.getElementById('screenshot-thumbnail')
+    if (thumbnail) {
+      thumbnail.style.opacity = '0'
+      setTimeout(() => {
+        thumbnail.remove()
+      }, 200)
+    }
+  }
+
+  private showScreenshotModal(screenshot: string): void {
+    // 创建模态框
+    const modal = document.createElement('div')
+    modal.id = 'screenshot-modal'
+    modal.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/50'
+    modal.style.cssText = `
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    `
+
+    // 创建模态框内容
+    const modalContent = document.createElement('div')
+    modalContent.className =
+      'relative bg-background rounded-lg shadow-xl max-w-4xl max-h-[90vh] m-4'
+    modalContent.style.cssText = `
+      transform: scale(0.9);
+      transition: transform 0.3s ease-in-out;
+    `
+
+    // 创建关闭按钮
+    const closeBtn = document.createElement('button')
+    closeBtn.className =
+      'absolute top-4 right-4 z-10 p-2 rounded-full bg-background/80 hover:bg-accent transition-colors'
+    closeBtn.innerHTML = `
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+      </svg>
+    `
+
+    // 创建图片容器
+    const imgContainer = document.createElement('div')
+    imgContainer.className = 'p-4'
+
+    // 创建图片元素
+    const img = ScreenshotRenderer.createImageElement(screenshot, {
+      className: 'w-full h-full object-contain rounded',
+      onLoad: () => {
+        modal.style.opacity = '1'
+        modalContent.style.transform = 'scale(1)'
+      },
+      onError: () => {
+        imgContainer.innerHTML = `
+          <div class="flex flex-col items-center justify-center p-12 text-muted-foreground">
+            <svg class="w-16 h-16 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+            </svg>
+            <p class="text-lg font-medium">截图加载失败</p>
+            <p class="text-sm">图片数据可能已损坏</p>
+          </div>
+        `
+        modal.style.opacity = '1'
+        modalContent.style.transform = 'scale(1)'
+      },
+    })
+
+    imgContainer.appendChild(img)
+    modalContent.appendChild(closeBtn)
+    modalContent.appendChild(imgContainer)
+    modal.appendChild(modalContent)
+    document.body.appendChild(modal)
+
+    // 事件监听器
+    const closeModal = () => {
+      modal.style.opacity = '0'
+      modalContent.style.transform = 'scale(0.9)'
+      setTimeout(() => {
+        modal.remove()
+      }, 300)
+    }
+
+    closeBtn.addEventListener('click', closeModal)
+    modal.addEventListener('click', e => {
+      if (e.target === modal) {
+        closeModal()
+      }
+    })
+
+    // ESC键关闭
+    const handleKeyPress = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        closeModal()
+        document.removeEventListener('keydown', handleKeyPress)
+      }
+    }
+    document.addEventListener('keydown', handleKeyPress)
+
+    // 显示动画
+    setTimeout(() => {
+      modal.style.opacity = '1'
+      modalContent.style.transform = 'scale(1)'
+    }, 10)
   }
 
   private showNotification(
@@ -1376,6 +1571,30 @@ document.addEventListener('DOMContentLoaded', async () => {
       @keyframes highlightGlow {
         0%, 100% { box-shadow: 0 0 15px hsl(var(--primary) / 0.2); }
         50% { box-shadow: 0 0 20px hsl(var(--primary) / 0.3); }
+      }
+      
+      .screenshot-icon-btn {
+        opacity: 0.7;
+        transition: all 0.2s ease;
+      }
+      
+      .screenshot-icon-btn:hover {
+        opacity: 1;
+        transform: scale(1.1);
+      }
+      
+      #screenshot-thumbnail {
+        backdrop-filter: blur(8px);
+        border: 1px solid hsl(var(--border));
+      }
+      
+      #screenshot-modal {
+        backdrop-filter: blur(4px);
+      }
+      
+      #screenshot-modal .bg-background\/80 {
+        background: hsl(var(--background) / 0.8);
+        backdrop-filter: blur(4px);
       }
     </style>
   `
