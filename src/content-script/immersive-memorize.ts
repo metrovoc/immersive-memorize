@@ -31,7 +31,6 @@ export class ImmersiveMemorize {
   private lastProcessedText: string = ''
   private lastLearnedWordsSnapshot: string = ''
   private isProcessing: boolean = false
-  private refreshDebounceTimeout: NodeJS.Timeout | null = null
 
   private captureHotkey: string = 's'
   private debugMode: boolean = true
@@ -1258,13 +1257,21 @@ export class ImmersiveMemorize {
     chrome.storage.onChanged.addListener(async changes => {
       let needsRefresh = false
 
+      // 只有当词库设置真正改变时才重新加载
       if (changes.vocabLibrarySettings) {
+        if (this.debugMode) {
+          console.log('[ImmersiveMemorizeV2] 词库设置变化，重新加载词库')
+        }
         await this.vocabLibraryManager.init()
         await this.subtitleProcessor?.updateWordLists()
         needsRefresh = true
       }
 
+      // 学习卡片变化时，只更新本地状态，不重新加载整个词库
       if (changes.savedCards) {
+        if (this.debugMode) {
+          console.log('[ImmersiveMemorizeV2] 学习卡片变化，更新已学词汇列表')
+        }
         const savedCards = changes.savedCards.newValue || []
         this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
         this.subtitleProcessor?.setLearnedWords(this.learnedWords)
@@ -1287,6 +1294,7 @@ export class ImmersiveMemorize {
 
   /**
    * 刷新当前字幕
+   * 通过重置状态强制重新处理，但使用统一的处理路径
    */
   private refreshCurrentSubtitles(): void {
     if (!this.activeSource) {
@@ -1294,25 +1302,17 @@ export class ImmersiveMemorize {
       return
     }
 
-    // 防抖处理，避免短时间内多次刷新
-    if (this.refreshDebounceTimeout) {
-      clearTimeout(this.refreshDebounceTimeout)
+    if (this.debugMode) {
+      console.log('[ImmersiveMemorizeV2] 强制刷新字幕处理')
     }
+    
+    // 重置状态，强制重新处理
+    this.lastProcessedText = ''
+    this.lastLearnedWordsSnapshot = ''
 
-    this.refreshDebounceTimeout = setTimeout(() => {
-      if (this.debugMode) {
-        console.log('[ImmersiveMemorizeV2] 执行防抖后的字幕刷新')
-      }
-      
-      // 重置状态，强制重新处理
-      this.lastProcessedText = ''
-      this.lastLearnedWordsSnapshot = ''
-
-      const containers = this.activeSource?.detectSubtitleContainers() || []
-      this.processSubtitleContainers(containers)
-      
-      this.refreshDebounceTimeout = null
-    }, 50) // 50ms防抖
+    // 使用统一的处理路径，保持状态管理的一致性
+    const containers = this.activeSource.detectSubtitleContainers()
+    this.processSubtitleContainers(containers)
   }
 
   /**
@@ -1391,7 +1391,7 @@ export class ImmersiveMemorize {
       this.learnedWords.add(lemma)
       this.subtitleProcessor?.setLearnedWords(this.learnedWords)
 
-      // 更新进度
+      // 更新进度（仅内存中，不触发storage变化）
       await this.vocabLibraryManager.updateProgressFromCards()
 
       this.showNotification(`${word.word} ( ${lemma} ) 已学习`)
@@ -1558,12 +1558,6 @@ export class ImmersiveMemorize {
     this.lastProcessedText = ''
     this.lastLearnedWordsSnapshot = ''
     this.isProcessing = false
-
-    // 清理防抖计时器
-    if (this.refreshDebounceTimeout) {
-      clearTimeout(this.refreshDebounceTimeout)
-      this.refreshDebounceTimeout = null
-    }
 
     if (this.activeSource) {
       this.activeSource.cleanup()
