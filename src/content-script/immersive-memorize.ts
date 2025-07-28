@@ -240,11 +240,21 @@ export class ImmersiveMemorize {
     const textUnchanged = currentTexts === this.lastProcessedText
     const learnedStateUnchanged = currentLearnedSnapshot === this.lastLearnedWordsSnapshot
     
-    if (textUnchanged && learnedStateUnchanged && !this.isProcessing) {
+    // 检查高亮是否还存在（防止DOM重建导致的高亮丢失）
+    const hasActiveHighlight = document.querySelector('.im-current-target') !== null
+    
+    if (textUnchanged && learnedStateUnchanged && hasActiveHighlight && !this.isProcessing) {
       if (this.debugMode) {
-        console.log('[ImmersiveMemorizeV2] 字幕文本和学习状态未变化，跳过处理')
+        console.log('[ImmersiveMemorizeV2] 字幕文本和学习状态未变化，且高亮存在，跳过处理')
       }
       return
+    }
+    
+    // 如果文本相同但高亮丢失，需要重新处理
+    if (textUnchanged && learnedStateUnchanged && !hasActiveHighlight && this.currentTargetWord) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 检测到高亮丢失，重新处理字幕')
+      }
     }
 
     // 如果是学习状态变化但文本相同，说明用户刚学了一个词，需要重新分析
