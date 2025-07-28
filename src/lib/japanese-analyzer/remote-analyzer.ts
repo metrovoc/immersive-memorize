@@ -152,3 +152,8 @@ export async function analyze(text: string): Promise<Word[]> {
   const analyzer = getRemoteAnalyzer()
   return analyzer.analyze(text)
 }
+
+/**
+ * 导出类型
+ */
+export type { Word } from './common'
