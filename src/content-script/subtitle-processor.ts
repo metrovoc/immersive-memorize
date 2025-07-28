@@ -1,17 +1,17 @@
 
-import { analyze, Word } from '@/lib/japanese-analyzer';
-import { VocabLibraryManager } from '@/lib/vocab-library';
+import { analyze, Word } from '@/lib/japanese-analyzer/remote-analyzer';
+import { CachedRemoteVocabLibraryManager } from '@/lib/vocab-library/cached-remote-vocab-library';
 import { SubtitleTextParser, type FuriganaMapping, type ParsedSubtitleText } from './subtitle-text-parser';
 import type { VocabEntry } from '@/types';
 
 export class SubtitleProcessor {
-  private vocabLibraryManager: VocabLibraryManager;
+  private vocabLibraryManager: CachedRemoteVocabLibraryManager;
   private learnedWords: Set<string>;
   private activeWordLemmas: Set<string>;
   private debugMode: boolean;
   private textParser: SubtitleTextParser;
 
-  constructor(vocabLibraryManager: VocabLibraryManager, learnedWords: Set<string>, debugMode: boolean = true) {
+  constructor(vocabLibraryManager: CachedRemoteVocabLibraryManager, learnedWords: Set<string>, debugMode: boolean = true) {
     this.vocabLibraryManager = vocabLibraryManager;
     this.learnedWords = learnedWords;
     this.debugMode = debugMode;

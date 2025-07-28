@@ -1,4 +1,4 @@
-import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer'
+import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer/common'
 
 export type Word = AnalyzerWord
 

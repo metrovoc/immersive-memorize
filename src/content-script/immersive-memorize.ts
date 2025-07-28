@@ -4,7 +4,7 @@
  */
 
 import type { FlashCard, ExtensionSettings, Word } from '@/types'
-import { VocabLibraryManager } from '@/lib/vocab-library'
+import { CachedRemoteVocabLibraryManager } from '@/lib/vocab-library/cached-remote-vocab-library'
 import { SubtitleProcessor } from './subtitle-processor'
 import { SubtitleSourceRegistry, PageContextBuilder } from './subtitle-sources/registry'
 import { NetflixSubtitleSource } from './subtitle-sources/netflix-source'
@@ -12,7 +12,7 @@ import { CustomSRTSubtitleSource } from './subtitle-sources/custom-srt-source'
 import type { ISubtitleSource, PageContext } from './subtitle-sources/types'
 
 export class ImmersiveMemorize {
-  private vocabLibraryManager: VocabLibraryManager
+  private vocabLibraryManager: CachedRemoteVocabLibraryManager
   private subtitleProcessor: SubtitleProcessor | null = null
   private sourceRegistry: SubtitleSourceRegistry
   private activeSource: ISubtitleSource | null = null
@@ -25,6 +25,12 @@ export class ImmersiveMemorize {
   private hotkeyHandler: ((e: KeyboardEvent) => void) | null = null
   private isHotkeyEnabled: boolean = false
   private heavyResourcesLoaded: boolean = false
+
+  // 分析状态管理
+  private currentAnalysisPromise: Promise<void> | null = null
+  private lastProcessedText: string = ''
+  private lastLearnedWordsSnapshot: string = ''
+  private isProcessing: boolean = false
 
   private captureHotkey: string = 's'
   private debugMode: boolean = true
@@ -43,7 +49,7 @@ export class ImmersiveMemorize {
       console.log(`[ImmersiveMemorizeV2] 初始化${this.frameContext}frame模式`)
     }
 
-    this.vocabLibraryManager = new VocabLibraryManager()
+    this.vocabLibraryManager = new CachedRemoteVocabLibraryManager()
     this.sourceRegistry = new SubtitleSourceRegistry(this.debugMode)
     this.customSource = new CustomSRTSubtitleSource(this.debugMode)
     this.initializeSubtitleSources()
@@ -221,38 +227,111 @@ export class ImmersiveMemorize {
     // 确保在有有效字幕时启用快捷键
     this.enableHotkeyListener()
 
-    // 清除现有高亮
-    this.clearAllHighlights()
-    this.currentTargetWord = null
-    this.currentTargetElement = null
+    // 提取当前字幕文本用于去重判断
+    const currentTexts = containers
+      .map(c => c.innerText?.trim())
+      .filter(t => t)
+      .join('|')
 
-    // 按优先级处理容器
-    for (const container of containers) {
-      const text = container.innerText?.trim()
-      if (!text) continue
+    // 生成当前已学词汇快照
+    const currentLearnedSnapshot = Array.from(this.learnedWords).sort().join(',')
 
-      // 重置处理标记
-      container.dataset.imProcessed = ''
+    // 检查是否与上次处理的文本和学习状态相同
+    const textUnchanged = currentTexts === this.lastProcessedText
+    const learnedStateUnchanged = currentLearnedSnapshot === this.lastLearnedWordsSnapshot
 
-      // 尝试处理这个容器
-      const targetWord = await this.subtitleProcessor.processAndHighlight(container)
+    // 检查高亮是否还存在（防止DOM重建导致的高亮丢失）
+    const hasActiveHighlight = document.querySelector('.im-current-target') !== null
 
-      if (targetWord) {
-        this.currentTargetWord = targetWord
-        this.currentTargetElement = document.querySelector('.im-current-target')
-        container.dataset.imProcessed = 'true'
+    if (textUnchanged && learnedStateUnchanged && hasActiveHighlight && !this.isProcessing) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 字幕文本和学习状态未变化，且高亮存在，跳过处理')
+      }
+      return
+    }
 
-        if (this.debugMode) {
-          console.log(
-            `[ImmersiveMemorizeV2] 找到目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`
-          )
-        }
-        return // 找到目标词汇后停止处理
+    // 如果文本相同但高亮丢失，需要重新处理
+    if (textUnchanged && learnedStateUnchanged && !hasActiveHighlight && this.currentTargetWord) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 检测到高亮丢失，重新处理字幕')
       }
     }
 
-    if (this.debugMode) {
-      console.log('[ImmersiveMemorizeV2] 当前字幕无未学词汇')
+    // 如果是学习状态变化但文本相同，说明用户刚学了一个词，需要重新分析
+    if (textUnchanged && !learnedStateUnchanged) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 检测到学习状态变化，重新分析相同字幕寻找下个词汇')
+      }
+    }
+
+    // 如果当前正在处理，等待完成
+    if (this.currentAnalysisPromise) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 等待当前分析完成...')
+      }
+      await this.currentAnalysisPromise
+    }
+
+    // 创建新的分析Promise
+    this.currentAnalysisPromise = this.doProcessSubtitles(
+      containers,
+      currentTexts,
+      currentLearnedSnapshot
+    )
+    await this.currentAnalysisPromise
+    this.currentAnalysisPromise = null
+  }
+
+  /**
+   * 执行实际的字幕处理
+   */
+  private async doProcessSubtitles(
+    containers: HTMLElement[],
+    currentTexts: string,
+    learnedSnapshot: string
+  ): Promise<void> {
+    this.isProcessing = true
+    this.lastProcessedText = currentTexts
+    this.lastLearnedWordsSnapshot = learnedSnapshot
+
+    try {
+      // 清除现有高亮（只在开始新的分析时清除）
+      this.clearAllHighlights()
+      this.currentTargetWord = null
+      this.currentTargetElement = null
+
+      // 按优先级处理容器
+      for (const container of containers) {
+        const text = container.innerText?.trim()
+        if (!text) continue
+
+        // 重置处理标记
+        container.dataset.imProcessed = ''
+
+        // 尝试处理这个容器
+        const targetWord = await this.subtitleProcessor!.processAndHighlight(container)
+
+        if (targetWord) {
+          this.currentTargetWord = targetWord
+          this.currentTargetElement = document.querySelector('.im-current-target')
+          container.dataset.imProcessed = 'true'
+
+          if (this.debugMode) {
+            console.log(
+              `[ImmersiveMemorizeV2] 找到目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`
+            )
+          }
+          return // 找到目标词汇后停止处理
+        }
+      }
+
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 当前字幕无未学词汇')
+      }
+    } catch (error) {
+      console.error('[ImmersiveMemorizeV2] 处理字幕时发生错误:', error)
+    } finally {
+      this.isProcessing = false
     }
   }
 
@@ -260,11 +339,23 @@ export class ImmersiveMemorize {
    * 设置页面上下文观察器
    */
   private setupPageContextObserver(initialContext: PageContext): void {
+    // [根本性修复] 在创建新观察者之前，必须断开并清理旧的观察者。
+    // 这能防止观察者在页面导航中不断累积，从而解决性能瓶颈。
+    if (this.pageContextObserver) {
+      this.pageContextObserver.disconnect()
+    }
+
     this.pageContextObserver = PageContextBuilder.observeChanges(newContext => {
       if (this.hasSignificantContextChange(initialContext, newContext)) {
         if (this.debugMode) {
-          console.log('[ImmersiveMemorizeV2] 页面上下文发生重大变化，重新初始化')
+          console.log('[ImmersiveMemorizeV2] 页面上下文发生重大变化，清理当前活动源并重新初始化')
         }
+        // 在重新检测前，先清理当前的活动源
+        if (this.activeSource) {
+          this.activeSource.cleanup()
+          this.activeSource = null
+        }
+
         this.detectAndInitializeSubtitleSources()
       }
     })
@@ -1196,13 +1287,22 @@ export class ImmersiveMemorize {
     chrome.storage.onChanged.addListener(async changes => {
       let needsRefresh = false
 
+      // 只有当词库设置真正改变时才重新加载
       if (changes.vocabLibrarySettings) {
+        if (this.debugMode) {
+          console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 词库设置变化，重新加载词库`)
+        }
         await this.vocabLibraryManager.init()
         await this.subtitleProcessor?.updateWordLists()
         needsRefresh = true
       }
 
+      // 学习卡片变化时，只更新本地状态，不重新加载整个词库
       if (changes.savedCards) {
+        if (this.debugMode && this.isMainFrame) {
+          // 只在主frame输出此日志，避免重复
+          console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 学习卡片变化，更新已学词汇列表`)
+        }
         const savedCards = changes.savedCards.newValue || []
         this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
         this.subtitleProcessor?.setLearnedWords(this.learnedWords)
@@ -1225,6 +1325,7 @@ export class ImmersiveMemorize {
 
   /**
    * 刷新当前字幕
+   * 通过重置状态强制重新处理，但使用统一的处理路径
    */
   private refreshCurrentSubtitles(): void {
     if (!this.activeSource) {
@@ -1232,6 +1333,15 @@ export class ImmersiveMemorize {
       return
     }
 
+    if (this.debugMode) {
+      console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 强制刷新字幕处理`)
+    }
+
+    // 重置状态，强制重新处理
+    this.lastProcessedText = ''
+    this.lastLearnedWordsSnapshot = ''
+
+    // 使用统一的处理路径，保持状态管理的一致性
     const containers = this.activeSource.detectSubtitleContainers()
     this.processSubtitleContainers(containers)
   }
@@ -1312,7 +1422,7 @@ export class ImmersiveMemorize {
       this.learnedWords.add(lemma)
       this.subtitleProcessor?.setLearnedWords(this.learnedWords)
 
-      // 更新进度
+      // 更新进度（仅内存中，不触发storage变化）
       await this.vocabLibraryManager.updateProgressFromCards()
 
       this.showNotification(`${word.word} ( ${lemma} ) 已学习`)
@@ -1473,6 +1583,12 @@ export class ImmersiveMemorize {
   cleanup(): void {
     // 清理快捷键监听器
     this.disableHotkeyListener()
+
+    // 重置分析状态
+    this.currentAnalysisPromise = null
+    this.lastProcessedText = ''
+    this.lastLearnedWordsSnapshot = ''
+    this.isProcessing = false
 
     if (this.activeSource) {
       this.activeSource.cleanup()
