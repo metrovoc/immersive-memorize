@@ -1363,7 +1363,6 @@ class OptionsManager {
     ) as HTMLInputElement
     const sitesSection = document.getElementById('sites-section')!
     const addSiteBtn = document.getElementById('add-site-btn')!
-    const sitesList = document.getElementById('sites-list')!
 
     // Global auto enable toggle
     globalAutoEnableCheckbox?.addEventListener('change', async () => {

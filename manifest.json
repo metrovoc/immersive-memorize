@@ -3,11 +3,12 @@
   "name": "Immersive Memorize",
   "version": "0.9.0",
   "description": "Learn Japanese from streaming services like Netflix by creating contextual flashcards from subtitles.",
-  "permissions": ["storage", "activeTab", "scripting", "tabs", "idle"],
+  "permissions": ["storage", "activeTab", "scripting", "tabs"],
   "background": {
     "service_worker": "background.js"
   },
-  "host_permissions": ["*://*.netflix.com/*", "*://*/*"],
+  "host_permissions": ["*://*.netflix.com/*"],
+  "optional_host_permissions": ["*://*/*"],
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "Immersive Memorize"

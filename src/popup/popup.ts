@@ -328,6 +328,34 @@ class PopupManager {
 
   private async initiateVideoSelection(): Promise<void> {
     try {
+      // 检查当前标签页URL
+      const [activeTab] = await chrome.tabs.query({ active: true, currentWindow: true })
+      
+      if (!activeTab?.url) {
+        this.showNotification('无法获取当前页面URL', 'error')
+        return
+      }
+
+      // 检查是否为Netflix，如果不是则请求可选权限
+      if (!activeTab.url.includes('netflix.com')) {
+        const hasPermission = await chrome.permissions.contains({
+          origins: ['*://*/*']
+        })
+
+        if (!hasPermission) {
+          this.showNotification('需要额外权限以在此网站使用', 'info')
+          const granted = await chrome.permissions.request({
+            origins: ['*://*/*']
+          })
+
+          if (!granted) {
+            this.showNotification('权限被拒绝，无法在此网站使用', 'error')
+            return
+          }
+          this.showNotification('权限已授予', 'success')
+        }
+      }
+
       // 发送消息到background script，然后转发给content script
       const response = await chrome.runtime.sendMessage({
         type: 'INITIATE_VIDEO_SELECTION',

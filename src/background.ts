@@ -96,6 +96,28 @@ function setIcon(active: boolean, tabId: number): void {
 }
 
 /**
+ * Checks if we have permission to access a specific URL
+ * @param {string} url - The URL to check
+ * @returns {Promise<boolean>} - Whether we have permission
+ */
+async function hasPermissionForUrl(url: string): Promise<boolean> {
+  try {
+    // Netflix is always allowed via host_permissions
+    if (url.includes('netflix.com')) {
+      return true
+    }
+
+    // Check for optional permissions
+    return await chrome.permissions.contains({
+      origins: ['*://*/*']
+    })
+  } catch (error) {
+    console.error('[Background] Error checking permissions:', error)
+    return false
+  }
+}
+
+/**
  * Checks if the content script is already running in the specified tab.
  * @param {number} tabId - The ID of the tab to check.
  * @returns {Promise<boolean>} - True if script is already running.
@@ -117,6 +139,21 @@ async function isScriptAlreadyInjected(tabId: number): Promise<boolean> {
  */
 async function activateOnTab(tabId: number): Promise<void> {
   try {
+    // Get tab info to check permissions
+    const tab = await chrome.tabs.get(tabId)
+    if (!tab.url) {
+      console.log(`[Background] No URL for tab ${tabId}`)
+      return
+    }
+
+    // Check if we have permission for this URL
+    const hasPermission = await hasPermissionForUrl(tab.url)
+    if (!hasPermission) {
+      console.log(`[Background] No permission for tab ${tabId} (${tab.url})`)
+      setIcon(false, tabId)
+      return
+    }
+
     // Check if script is already running by sending a ping
     const alreadyInjected = await isScriptAlreadyInjected(tabId)
     if (alreadyInjected) {

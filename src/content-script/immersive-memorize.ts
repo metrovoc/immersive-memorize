@@ -1022,7 +1022,6 @@ export class ImmersiveMemorize {
   private attachContextPanelEventListeners(panel: HTMLElement, video: HTMLVideoElement): void {
     const fileInput = panel.querySelector('.im-file-input') as HTMLInputElement
     const fileUploadArea = panel.querySelector('.im-file-upload-area') as HTMLElement
-    const fileInfo = panel.querySelector('.im-file-info') as HTMLElement
     const closeBtn = panel.querySelector('.im-close-panel') as HTMLButtonElement
     const cancelBtn = panel.querySelector('.im-cancel-btn') as HTMLButtonElement
     const loadBtn = panel.querySelector('.im-load-subtitle-btn') as HTMLButtonElement
