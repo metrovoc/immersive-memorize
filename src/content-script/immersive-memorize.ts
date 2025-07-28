@@ -1453,6 +1453,16 @@ export class ImmersiveMemorize {
 
     try {
       const response = await chrome.runtime.sendMessage({ action: 'captureVisibleTab' })
+      
+      if (response?.error) {
+        console.warn('[ImmersiveMemorizeV2] 截图失败:', response.error)
+        // 如果是权限问题，显示提示给用户
+        if (response.error.includes('permission')) {
+          this.showNotification('截图需要额外权限，请点击扩展图标授权', 'warning')
+        }
+        return ''
+      }
+      
       return response?.data || ''
     } catch (error) {
       console.error('[ImmersiveMemorizeV2] 截图失败:', error)
