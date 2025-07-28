@@ -1,7 +1,7 @@
 
 import { analyze, Word } from '@/lib/japanese-analyzer/remote-analyzer';
 import { CachedRemoteVocabLibraryManager } from '@/lib/vocab-library/cached-remote-vocab-library';
-import { SubtitleTextParser, type FuriganaMapping, type ParsedSubtitleText } from './subtitle-text-parser';
+import { SubtitleTextParser, type FuriganaMapping } from './subtitle-text-parser';
 import type { VocabEntry } from '@/types';
 
 export class SubtitleProcessor {
@@ -248,8 +248,8 @@ export class SubtitleProcessor {
 
     // Process nodes in reverse to avoid issues with node splitting
     for (const textNode of nodesToProcess.reverse()) {
-        let text = textNode.textContent || '';
-        let wordIndex = text.lastIndexOf(surfaceForm);
+        const text = textNode.textContent || '';
+        const wordIndex = text.lastIndexOf(surfaceForm);
 
         // Find the last occurrence in this node, as we are iterating backwards
         if (wordIndex !== -1) {

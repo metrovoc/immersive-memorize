@@ -10,17 +10,18 @@ import type {
   VocabLibrarySettings,
   FlashCard,
 } from '@/types'
+import { storageService } from '@/lib/storage'
 
 export interface VocabRequest {
   requestId: string
   type: 'getActiveWordlist' | 'getSelectedLibrary' | 'getSettings' | 'updateProgress'
-  data?: any
+  data?: unknown
 }
 
 export interface VocabResponse {
   requestId: string
   success: boolean
-  data?: any
+  data?: unknown
   error?: string
 }
 
@@ -169,7 +170,7 @@ export class VocabLibraryService {
     try {
       await this.initialize()
 
-      let data: any
+      let data: unknown
 
       switch (request.type) {
         case 'getActiveWordlist':
@@ -243,8 +244,7 @@ export class VocabLibraryService {
    */
   private async updateProgressFromCards(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['savedCards'])
-      const savedCards: FlashCard[] = result.savedCards || []
+      const savedCards: FlashCard[] = await storageService.getAllCards()
 
       const learnedWordsCount: Record<string, number> = {}
 

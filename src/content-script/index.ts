@@ -160,7 +160,7 @@ class Application {
 const app = new Application()
 
 // 暴露到全局作用域供调试使用
-;(window as any).ImmersiveMemorizeV2 = app
+;(window as { ImmersiveMemorizeV2?: Application }).ImmersiveMemorizeV2 = app
 
 // 初始化应用
 function initializeApp(): void {

@@ -22,6 +22,6 @@ interface KuromojiTokenizer {
 // Declare the module for the builder function itself.
 declare module '@patdx/kuromoji' {
     export function builder(options: { dicPath: string }): {
-        build(callback: (err: any, tokenizer: KuromojiTokenizer) => void): void;
+        build(callback: (err: Error | null, tokenizer: KuromojiTokenizer) => void): void;
     };
 }

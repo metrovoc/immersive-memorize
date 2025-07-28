@@ -5,6 +5,7 @@ import {
   type AnalyzeRequest,
 } from './background/japanese-analyzer-service'
 import { VocabLibraryService, type VocabRequest } from './background/vocab-library-service'
+import { storageService, migrationManager } from './lib/storage'
 
 // --- New State and Configuration ---
 // Tracks which tabs have been manually activated by the user clicking the icon.
@@ -29,6 +30,14 @@ const vocabService = VocabLibraryService.getInstance()
 // Load settings immediately when background script starts
 loadActivationSettings().then(() => {
   console.log('[Background] Initial settings load completed')
+})
+
+// 启动数据迁移检查
+console.log('[Background] 开始启动迁移检查...')
+migrationManager.migrate().then(() => {
+  console.log('[Background] Data migration check completed')
+}).catch(error => {
+  console.error('[Background] Data migration failed:', error)
 })
 
 /**
@@ -383,6 +392,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const status = vocabService.getStatus()
     sendResponse({ success: true, status })
     return true
+  }
+
+  // Handle storage requests
+  if (request.type && ['GET_CARDS', 'ADD_CARD', 'DELETE_CARD', 'GET_CARDS_BY_LEVEL', 'GET_LEARNED_WORDS', 'GET_SCREENSHOT', 'CLEAR_ALL_DATA', 'MIGRATE_DATA'].includes(request.type)) {
+    console.log('[Background] 收到存储请求:', request.type, request.payload ? 'with payload' : 'no payload')
+    
+    const storageMessage = {
+      type: request.type,
+      payload: request.payload
+    }
+    
+    storageService.handleStorageMessage(storageMessage)
+      .then(response => {
+        console.log('[Background] 存储请求处理完成:', request.type, response.success ? 'success' : 'failed')
+        sendResponse(response)
+      })
+      .catch(error => {
+        console.error('[Background] Storage request failed:', error)
+        sendResponse({ success: false, error: error.message })
+      })
+    
+    return true // Keep sendResponse alive for async response
   }
 
   // Check if it's a screenshot request

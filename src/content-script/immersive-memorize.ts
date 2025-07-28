@@ -10,6 +10,7 @@ import { SubtitleSourceRegistry, PageContextBuilder } from './subtitle-sources/r
 import { NetflixSubtitleSource } from './subtitle-sources/netflix-source'
 import { CustomSRTSubtitleSource } from './subtitle-sources/custom-srt-source'
 import type { ISubtitleSource, PageContext } from './subtitle-sources/types'
+import { storageService } from '@/lib/storage'
 
 export class ImmersiveMemorize {
   private vocabLibraryManager: CachedRemoteVocabLibraryManager
@@ -446,7 +447,6 @@ export class ImmersiveMemorize {
       'captureHotkey',
       'debugMode',
       'enableScreenshot',
-      'savedCards',
     ])) as Partial<ExtensionSettings>
 
     this.captureHotkey = result.captureHotkey || 's'
@@ -454,8 +454,13 @@ export class ImmersiveMemorize {
     this.enableScreenshot = result.enableScreenshot || false
 
     // 加载已学词汇
-    const savedCards = result.savedCards || []
-    this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
+    try {
+      const learnedWords = await storageService.getLearnedWords()
+      this.learnedWords = new Set(learnedWords)
+    } catch (error) {
+      console.error('[ImmersiveMemorize] 加载已学词汇失败:', error)
+      this.learnedWords = new Set()
+    }
   }
 
   /**
@@ -568,14 +573,14 @@ export class ImmersiveMemorize {
   /**
    * 处理字幕样式更新请求
    */
-  private handleSubtitleStyleUpdate(styles: any): void {
+  private handleSubtitleStyleUpdate(styles: Record<string, string>): void {
     if (this.debugMode) {
       console.log('[ImmersiveMemorizeV2] 收到字幕样式更新:', styles)
     }
 
     // 检查当前是否使用自定义字幕源
     if (this.activeSource && this.activeSource.name === 'Custom SRT') {
-      const customSource = this.activeSource as any // Cast to access custom methods
+      const customSource = this.activeSource as ISubtitleSource & { updateStyles: (styles: Record<string, string>) => void } // Cast to access custom methods
       if (customSource.updateStyles) {
         customSource.updateStyles(styles)
         if (this.debugMode) {
@@ -1307,8 +1312,8 @@ export class ImmersiveMemorize {
           // 只在主frame输出此日志，避免重复
           console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 学习卡片变化，更新已学词汇列表`)
         }
-        const savedCards = changes.savedCards.newValue || []
-        this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
+        const learnedWords = await storageService.getLearnedWords()
+        this.learnedWords = new Set(learnedWords)
         this.subtitleProcessor?.setLearnedWords(this.learnedWords)
         needsRefresh = true
       }
@@ -1416,11 +1421,7 @@ export class ImmersiveMemorize {
       }
 
       // 保存卡片
-      const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
-      const savedCards = result.savedCards || []
-      savedCards.push(cardData)
-
-      await chrome.storage.local.set({ savedCards: savedCards })
+      await storageService.addCard(cardData)
 
       // 更新已学词汇
       this.learnedWords.add(lemma)

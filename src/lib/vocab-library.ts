@@ -5,6 +5,7 @@ import type {
   VocabLibrarySettings,
   FlashCard,
 } from '@/types'
+import { storageService } from './storage'
 
 export class VocabLibraryManager {
   private libraries: VocabLibrary[] = []
@@ -133,8 +134,7 @@ export class VocabLibraryManager {
 
   private async getFlashCards(): Promise<FlashCard[]> {
     try {
-      const result = await chrome.storage.local.get(['savedCards'])
-      return result.savedCards || []
+      return await storageService.getAllCards()
     } catch (error) {
       console.error('加载记忆卡片失败:', error)
       return []
