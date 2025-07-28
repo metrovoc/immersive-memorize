@@ -239,17 +239,17 @@ export class ImmersiveMemorize {
     // 检查是否与上次处理的文本和学习状态相同
     const textUnchanged = currentTexts === this.lastProcessedText
     const learnedStateUnchanged = currentLearnedSnapshot === this.lastLearnedWordsSnapshot
-    
+
     // 检查高亮是否还存在（防止DOM重建导致的高亮丢失）
     const hasActiveHighlight = document.querySelector('.im-current-target') !== null
-    
+
     if (textUnchanged && learnedStateUnchanged && hasActiveHighlight && !this.isProcessing) {
       if (this.debugMode) {
         console.log('[ImmersiveMemorizeV2] 字幕文本和学习状态未变化，且高亮存在，跳过处理')
       }
       return
     }
-    
+
     // 如果文本相同但高亮丢失，需要重新处理
     if (textUnchanged && learnedStateUnchanged && !hasActiveHighlight && this.currentTargetWord) {
       if (this.debugMode) {
@@ -273,7 +273,11 @@ export class ImmersiveMemorize {
     }
 
     // 创建新的分析Promise
-    this.currentAnalysisPromise = this.doProcessSubtitles(containers, currentTexts, currentLearnedSnapshot)
+    this.currentAnalysisPromise = this.doProcessSubtitles(
+      containers,
+      currentTexts,
+      currentLearnedSnapshot
+    )
     await this.currentAnalysisPromise
     this.currentAnalysisPromise = null
   }
@@ -281,7 +285,11 @@ export class ImmersiveMemorize {
   /**
    * 执行实际的字幕处理
    */
-  private async doProcessSubtitles(containers: HTMLElement[], currentTexts: string, learnedSnapshot: string): Promise<void> {
+  private async doProcessSubtitles(
+    containers: HTMLElement[],
+    currentTexts: string,
+    learnedSnapshot: string
+  ): Promise<void> {
     this.isProcessing = true
     this.lastProcessedText = currentTexts
     this.lastLearnedWordsSnapshot = learnedSnapshot
@@ -331,11 +339,23 @@ export class ImmersiveMemorize {
    * 设置页面上下文观察器
    */
   private setupPageContextObserver(initialContext: PageContext): void {
+    // [根本性修复] 在创建新观察者之前，必须断开并清理旧的观察者。
+    // 这能防止观察者在页面导航中不断累积，从而解决性能瓶颈。
+    if (this.pageContextObserver) {
+      this.pageContextObserver.disconnect()
+    }
+
     this.pageContextObserver = PageContextBuilder.observeChanges(newContext => {
       if (this.hasSignificantContextChange(initialContext, newContext)) {
         if (this.debugMode) {
-          console.log('[ImmersiveMemorizeV2] 页面上下文发生重大变化，重新初始化')
+          console.log('[ImmersiveMemorizeV2] 页面上下文发生重大变化，清理当前活动源并重新初始化')
         }
+        // 在重新检测前，先清理当前的活动源
+        if (this.activeSource) {
+          this.activeSource.cleanup()
+          this.activeSource = null
+        }
+
         this.detectAndInitializeSubtitleSources()
       }
     })
@@ -1316,7 +1336,7 @@ export class ImmersiveMemorize {
     if (this.debugMode) {
       console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 强制刷新字幕处理`)
     }
-    
+
     // 重置状态，强制重新处理
     this.lastProcessedText = ''
     this.lastLearnedWordsSnapshot = ''
