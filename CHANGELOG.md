@@ -5,7 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.8.10](https://github.com/metrovoc/immersive-memorize/compare/v0.8.9...v0.8.10)
+## [v0.9.0](https://github.com/metrovoc/immersive-memorize/compare/v0.8.10...v0.9.0)
+
+### Merged
+
+- Centralization [`#22`](https://github.com/metrovoc/immersive-memorize/pull/22)
+
+### Commits
+
+- feat: 添加中央化词库服务和缓存管理 [`80c0ab8`](https://github.com/metrovoc/immersive-memorize/commit/80c0ab84410aadda5a8548ac3a5a9fdfbafb03fb)
+- feat: 添加中央化日语分析服务和条件分析器 [`12b8ae8`](https://github.com/metrovoc/immersive-memorize/commit/12b8ae8e10d1b3a5b0013d4bd33a6e55c0378097)
+- chore: 更新依赖和配置，删除未使用的组件 [`d7d33bc`](https://github.com/metrovoc/immersive-memorize/commit/d7d33bcb9f43cb01bd6f3e230bca45b284189f0a)
+- fix: 修复自定义字幕样式不能加载储存的样式设置 [`478cfb4`](https://github.com/metrovoc/immersive-memorize/commit/478cfb4c5e4fdcef1dacd5f2784c9d634c3211d3)
+- feat: 增强字幕处理逻辑和分析状态管理 [`9344148`](https://github.com/metrovoc/immersive-memorize/commit/93441489ea806a67f991bcc9deab3a4646219b41)
+
+## [v0.8.10](https://github.com/metrovoc/immersive-memorize/compare/v0.8.9...v0.8.10) - 2025-07-27
 
 ### Commits
 

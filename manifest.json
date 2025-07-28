@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Immersive Memorize",
-  "version": "0.8.10",
+  "version": "0.9.0",
   "description": "Learn Japanese from streaming services like Netflix by creating contextual flashcards from subtitles.",
   "permissions": [
     "storage",
