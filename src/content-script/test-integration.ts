@@ -69,7 +69,7 @@ class IntegrationTester {
                     `成功创建页面上下文: ${context.hostname}`);
 
       // 测试上下文观察器
-      const observer = PageContextBuilder.observeChanges((_newContext) => {
+      const observer = PageContextBuilder.observeChanges(() => {
         // 观察器回调函数
       });
 
@@ -272,7 +272,7 @@ Hello World
 }
 
 // 导出测试函数供控制台使用
-(window as any).runIntegrationTests = async () => {
+(window as { runIntegrationTests?: () => Promise<void> }).runIntegrationTests = async () => {
   const tester = new IntegrationTester();
   await tester.runAllTests();
 };

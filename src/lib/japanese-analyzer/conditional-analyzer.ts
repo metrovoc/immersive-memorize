@@ -14,22 +14,14 @@ let remoteAnalyzer: typeof import('./remote-analyzer') | null = null
  */
 function isInServiceWorker(): boolean {
   try {
-    return typeof (globalThis as any).importScripts === 'function' && 
-           typeof window === 'undefined' &&
-           typeof document === 'undefined'
+    return (
+      typeof (globalThis as any).importScripts === 'function' &&
+      typeof window === 'undefined' &&
+      typeof document === 'undefined'
+    )
   } catch {
     return false
   }
-}
-
-/**
- * 检测是否在内容脚本环境
- */
-function isInContentScript(): boolean {
-  return typeof window !== 'undefined' &&
-         typeof document !== 'undefined' &&
-         typeof chrome !== 'undefined' &&
-         !!chrome.runtime
 }
 
 /**
@@ -44,18 +36,12 @@ async function getAnalyzer(): Promise<{
       localAnalyzer = await import('./index')
     }
     return localAnalyzer
-  } else if (isInContentScript()) {
-    // 在内容脚本中使用远程分析器
+  } else {
+    // 在所有其他环境（content script、popup、options）中使用远程分析器
     if (!remoteAnalyzer) {
       remoteAnalyzer = await import('./remote-analyzer')
     }
     return remoteAnalyzer
-  } else {
-    // 默认情况下使用本地分析器（例如在选项页面或弹出窗口中）
-    if (!localAnalyzer) {
-      localAnalyzer = await import('./index')
-    }
-    return localAnalyzer
   }
 }
 

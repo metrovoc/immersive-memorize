@@ -1,15 +1,14 @@
 module.exports = {
   root: true,
   extends: [
-    '@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended',
   ],
   parser: '@typescript-eslint/parser',
   plugins: ['@typescript-eslint'],
   rules: {
-    '@typescript-eslint/no-unused-vars': 'error',
+    '@typescript-eslint/no-unused-vars': ['error', { 'argsIgnorePattern': '^_|_', 'varsIgnorePattern': '^_|_' }],
     '@typescript-eslint/no-explicit-any': 'warn',
-    '@typescript-eslint/prefer-const': 'error',
-    'prefer-const': 'off',
+    'prefer-const': 'error',
   },
   env: {
     browser: true,

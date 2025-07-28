@@ -2,13 +2,12 @@ import '../globals.css'
 import type {
   ExtensionSettings,
   VocabLibrary,
-  LevelProgress,
   ViewState,
   VocabEntry,
-  FlashCard,
 } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
-import { CSVFormatter, CSVExportFormat } from '@/lib/csv-formatter'
+import { CSVFormatter } from '@/lib/csv-formatter'
+import { storageService } from '@/lib/storage'
 
 class OptionsManager {
   private vocabLibraryManager: VocabLibraryManager
@@ -63,7 +62,7 @@ class OptionsManager {
 
   private async loadSettings(): Promise<void> {
     try {
-      const result = (await chrome.storage.local.get([
+      const _result = (await chrome.storage.local.get([
         'captureHotkey',
         'debugMode',
       ])) as Partial<ExtensionSettings>
@@ -187,7 +186,7 @@ class OptionsManager {
 
     // 添加面包屑导航点击事件
     this.breadcrumbContainer.querySelectorAll('[data-breadcrumb-index]').forEach(item => {
-      item.addEventListener('click', e => {
+      item.addEventListener('click', (e: Event) => {
         const index = parseInt((e.target as HTMLElement).dataset.breadcrumbIndex!)
         this.navigateBack(index)
       })
@@ -448,7 +447,7 @@ class OptionsManager {
 
     // 添加点击事件
     this.mainContent.querySelectorAll('.library-card').forEach(card => {
-      card.addEventListener('click', async e => {
+      card.addEventListener('click', async (e: Event) => {
         const libraryId = (e.currentTarget as HTMLElement).dataset.libraryId!
         await this.selectLibrary(libraryId)
 
@@ -534,7 +533,7 @@ class OptionsManager {
 
     // 添加事件监听器
     this.mainContent.querySelectorAll('.level-checkbox').forEach(checkbox => {
-      checkbox.addEventListener('change', async e => {
+      checkbox.addEventListener('change', async (e: Event) => {
         const target = e.target as HTMLInputElement
         const level = target.dataset.level!
         const enabled = target.checked
@@ -544,7 +543,7 @@ class OptionsManager {
     })
 
     this.mainContent.querySelectorAll('.view-vocab-btn').forEach(btn => {
-      btn.addEventListener('click', e => {
+      btn.addEventListener('click', (e: Event) => {
         e.stopPropagation()
         const level = (e.currentTarget as HTMLElement).dataset.level!
         this.viewState = {
@@ -631,7 +630,7 @@ class OptionsManager {
       const allLearnedCards = await this.vocabLibraryManager.getAllLearnedWords()
 
       // 按等级分组
-      const wordsByLevel: Record<string, any[]> = {}
+      const wordsByLevel: Record<string, { vocab: VocabEntry; card: { id: number; createdAt: string; sentence: string; sourceTitle: string; timestamp: number; }; learnedDate: string; }[]> = {}
 
       if (this.selectedLibrary) {
         for (const card of allLearnedCards) {
@@ -653,6 +652,9 @@ class OptionsManager {
                 VocabFurigana: card.reading || '',
                 VocabDefCN: card.definition || '',
                 Level: level,
+                VocabPitch: '',
+                VocabPoS: '',
+                Frequency: ''
               },
               card: card,
               learnedDate: card.createdAt || '未知',
@@ -809,7 +811,7 @@ class OptionsManager {
 
       // 为所有单个删除按钮添加事件监听器
       this.mainContent.querySelectorAll('.delete-learned-card-btn').forEach(btn => {
-        btn.addEventListener('click', async e => {
+        btn.addEventListener('click', async (e: Event) => {
           e.stopPropagation()
           const cardId = parseInt((e.currentTarget as HTMLElement).dataset.cardId!)
           await this.deleteLearnedCard(cardId)
@@ -833,9 +835,11 @@ class OptionsManager {
 
   private async exportToAnki(): Promise<void> {
     try {
-      const result = await chrome.storage.local.get(['savedCards', 'csvExportFormat'])
-      const savedCards: FlashCard[] = result.savedCards || []
-      const userFormat = result.csvExportFormat || 'anki-html' // 使用用户设置的格式
+      const [savedCards, csvExportSettings] = await Promise.all([
+        storageService.getAllCards(),
+        chrome.storage.local.get(['csvExportFormat'])
+      ])
+      const userFormat = csvExportSettings.csvExportFormat || 'anki-html' // 使用用户设置的格式
 
       if (savedCards.length === 0) {
         this.showNotification('没有卡片可导出', 'error')
@@ -868,7 +872,7 @@ class OptionsManager {
   private async clearAllCards(): Promise<void> {
     if (confirm('确定要删除所有卡片吗？此操作不可撤销。')) {
       try {
-        await chrome.storage.local.set({ savedCards: [] })
+        await storageService.clearAllData()
         // 更新学习进度（从记忆卡片推导）
         await this.vocabLibraryManager.updateProgressFromCards()
         // 重新渲染已学词汇页面
@@ -884,11 +888,7 @@ class OptionsManager {
   private async deleteLearnedCard(cardId: number): Promise<void> {
     if (confirm('确定要删除这张卡片吗？')) {
       try {
-        const result = await chrome.storage.local.get(['savedCards'])
-        const savedCards = result.savedCards || []
-
-        const updatedCards = savedCards.filter((card: any) => card.id !== cardId)
-        await chrome.storage.local.set({ savedCards: updatedCards })
+        await storageService.deleteCard(cardId)
 
         // 更新学习进度（从记忆卡片推导）
         await this.vocabLibraryManager.updateProgressFromCards()
@@ -1254,15 +1254,15 @@ class OptionsManager {
     })
   }
 
-  private handleSiteInputChange = (e: Event) => {
+  private handleSiteInputChange = (_e: Event) => {
     // Real-time validation could be added here
   }
 
-  private handleSiteInputBlur = async (e: Event) => {
+  private handleSiteInputBlur = async (_e: Event) => {
     await this.saveActivationSettings()
   }
 
-  private handleSiteEnabledChange = async (e: Event) => {
+  private handleSiteEnabledChange = async (_e: Event) => {
     await this.saveActivationSettings()
   }
 

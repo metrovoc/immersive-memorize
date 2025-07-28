@@ -1,7 +1,8 @@
 import '../globals.css'
 import './popup-styles.css'
-import type { FlashCard, ExtensionSettings } from '@/types'
+import type { FlashCard } from '@/types'
 import { VocabLibraryManager } from '@/lib/vocab-library'
+import { storageService } from '@/lib/storage'
 
 class PopupManager {
   // UI Elements
@@ -116,8 +117,7 @@ class PopupManager {
 
   private async loadCards(): Promise<void> {
     try {
-      const result = (await chrome.storage.local.get(['savedCards'])) as Partial<ExtensionSettings>
-      this.savedCards = result.savedCards || []
+      this.savedCards = await storageService.getAllCards()
 
       this.updateStats()
       this.renderCards()
@@ -251,8 +251,8 @@ class PopupManager {
   async deleteCard(cardId: number): Promise<void> {
     if (confirm('确定要删除这张卡片吗？')) {
       try {
+        await storageService.deleteCard(cardId)
         this.savedCards = this.savedCards.filter(card => card.id !== cardId)
-        await chrome.storage.local.set({ savedCards: this.savedCards })
 
         // 更新学习进度（从记忆卡片推导）
         await this.vocabLibraryManager.updateProgressFromCards()
