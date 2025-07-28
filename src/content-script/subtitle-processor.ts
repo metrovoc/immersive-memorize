@@ -1,5 +1,5 @@
 
-import { analyze, Word } from '@/lib/japanese-analyzer';
+import { analyze, Word } from '@/lib/japanese-analyzer/remote-analyzer';
 import { VocabLibraryManager } from '@/lib/vocab-library';
 import { SubtitleTextParser, type FuriganaMapping, type ParsedSubtitleText } from './subtitle-text-parser';
 import type { VocabEntry } from '@/types';
