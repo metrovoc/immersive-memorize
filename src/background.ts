@@ -107,10 +107,20 @@ async function hasPermissionForUrl(url: string): Promise<boolean> {
       return true
     }
 
-    // Check for optional permissions
-    return await chrome.permissions.contains({
+    // Check for optional permissions first
+    const hasOptionalPermission = await chrome.permissions.contains({
       origins: ['*://*/*']
     })
+    
+    if (hasOptionalPermission) {
+      return true
+    }
+
+    // For screenshot functionality, activeTab permission might be sufficient
+    // but it's only available right after user interaction with the extension
+    // We'll attempt the operation and let it fail gracefully if no permission
+    console.log(`[Background] No optional permission for ${url}, relying on activeTab if available`)
+    return false
   } catch (error) {
     console.error('[Background] Error checking permissions:', error)
     return false
@@ -289,6 +299,56 @@ chrome.tabs.onRemoved.addListener(tabId => {
     console.log(`[Background] Removed injected tab from set: ${tabId}`)
   }
 })
+
+/**
+ * Handles screenshot request from content script
+ * @param {chrome.runtime.MessageSender} sender - Message sender
+ * @param {Function} sendResponse - Response callback
+ */
+async function handleScreenshotRequest(
+  sender: chrome.runtime.MessageSender,
+  sendResponse: (response: unknown) => void
+): Promise<void> {
+  // Ensure we have sender.tab object and tab.id
+  if (sender.tab && sender.tab.id && sender.tab.url) {
+    // For screenshot, try to use activeTab if available, or check optional permissions
+    const isNetflix = sender.tab.url.includes('netflix.com')
+    const hasOptionalPermission = await chrome.permissions.contains({
+      origins: ['*://*/*']
+    })
+    
+    // If it's not Netflix and we don't have optional permissions, 
+    // we'll try anyway as activeTab might be sufficient, but warn the user
+    if (!isNetflix && !hasOptionalPermission) {
+      console.warn('Screenshot attempt without optional permissions, relying on activeTab')
+    }
+
+    chrome.tabs.captureVisibleTab(
+      sender.tab.windowId,
+      { format: 'jpeg', quality: 75 }, // Use lossy JPEG format with medium quality
+      dataUrl => {
+        if (chrome.runtime.lastError) {
+          // If there's an error (e.g., user denies permission), log it and send back null
+          console.error('Screenshot failed:', chrome.runtime.lastError.message)
+          let errorMessage = chrome.runtime.lastError.message || 'Unknown error'
+          
+          // Provide helpful error message for permission issues
+          if (errorMessage.includes('permission')) {
+            errorMessage = 'Screenshot requires permission for this website. Please click the extension icon to grant access.'
+          }
+          
+          sendResponse({ data: null, error: errorMessage })
+        } else {
+          // Success, send back the Base64 encoded image data
+          sendResponse({ data: dataUrl })
+        }
+      }
+    )
+  } else {
+    console.error('Could not get sender tab information.')
+    sendResponse({ data: null, error: 'Could not get sender tab information.' })
+  }
+}
 
 /**
  * Handle video selection request from popup
@@ -489,27 +549,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 
   // Check if it's a screenshot request
   if (request.action === 'captureVisibleTab') {
-    // Ensure we have sender.tab object and tab.id
-    if (sender.tab && sender.tab.id) {
-      chrome.tabs.captureVisibleTab(
-        sender.tab.windowId,
-        { format: 'jpeg', quality: 75 }, // Use lossy JPEG format with medium quality
-        dataUrl => {
-          if (chrome.runtime.lastError) {
-            // If there's an error (e.g., user denies permission), log it and send back null
-            console.error('Screenshot failed:', chrome.runtime.lastError.message)
-            sendResponse({ data: null, error: chrome.runtime.lastError.message })
-          } else {
-            // Success, send back the Base64 encoded image data
-            sendResponse({ data: dataUrl })
-          }
-        }
-      )
-    } else {
-      console.error('Could not get sender tab information.')
-      sendResponse({ data: null, error: 'Could not get sender tab information.' })
-    }
-    // Return true to indicate that we will send a response asynchronously
+    // Handle screenshot request asynchronously
+    handleScreenshotRequest(sender, sendResponse)
     return true
   }
 })
