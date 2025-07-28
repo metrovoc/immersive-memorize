@@ -1,23 +1,31 @@
 // src/background.ts
 
 import { JapaneseAnalyzerService, type AnalyzeRequest } from './background/japanese-analyzer-service'
+import { VocabLibraryService, type VocabRequest } from './background/vocab-library-service'
 
-// 初始化中央化日语分析服务
+// 初始化中央化服务
 const analyzerService = JapaneseAnalyzerService.getInstance()
+const vocabService = VocabLibraryService.getInstance()
 
-// Service Worker 启动时预热分析器
+// Service Worker 启动时预热服务
 chrome.runtime.onStartup.addListener(() => {
-  console.log('[Background] Service Worker 启动，开始预热日语分析器...')
-  analyzerService.initialize().catch(error => {
-    console.error('[Background] 预热分析器失败:', error)
+  console.log('[Background] Service Worker 启动，开始预热服务...')
+  Promise.all([
+    analyzerService.initialize(),
+    vocabService.initialize()
+  ]).catch(error => {
+    console.error('[Background] 预热服务失败:', error)
   })
 })
 
 // 扩展安装/更新时也进行预热
 chrome.runtime.onInstalled.addListener(() => {
-  console.log('[Background] 扩展安装/更新，开始预热日语分析器...')
-  analyzerService.initialize().catch(error => {
-    console.error('[Background] 预热分析器失败:', error)
+  console.log('[Background] 扩展安装/更新，开始预热服务...')
+  Promise.all([
+    analyzerService.initialize(),
+    vocabService.initialize()
+  ]).catch(error => {
+    console.error('[Background] 预热服务失败:', error)
   })
 })
 
@@ -90,6 +98,33 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   // Handle analyzer service status requests
   if (request.type === 'GET_ANALYZER_STATUS') {
     const status = analyzerService.getStatus()
+    sendResponse({ success: true, status })
+    return true
+  }
+
+  // Handle vocab library requests
+  if (request.type === 'VOCAB_REQUEST') {
+    const vocabRequest: VocabRequest = {
+      requestId: request.requestId,
+      type: request.requestType,
+      data: request.data
+    }
+    vocabService.handleRequest(vocabRequest)
+      .then(response => sendResponse(response))
+      .catch(error => {
+        console.error('[Background] 词库请求处理失败:', error)
+        sendResponse({
+          requestId: vocabRequest.requestId,
+          success: false,
+          error: error instanceof Error ? error.message : '服务器内部错误'
+        })
+      })
+    return true // Keep sendResponse alive for async response
+  }
+
+  // Handle vocab service status requests
+  if (request.type === 'GET_VOCAB_STATUS') {
+    const status = vocabService.getStatus()
     sendResponse({ success: true, status })
     return true
   }
