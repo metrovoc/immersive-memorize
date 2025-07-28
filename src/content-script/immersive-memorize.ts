@@ -1260,7 +1260,7 @@ export class ImmersiveMemorize {
       // 只有当词库设置真正改变时才重新加载
       if (changes.vocabLibrarySettings) {
         if (this.debugMode) {
-          console.log('[ImmersiveMemorizeV2] 词库设置变化，重新加载词库')
+          console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 词库设置变化，重新加载词库`)
         }
         await this.vocabLibraryManager.init()
         await this.subtitleProcessor?.updateWordLists()
@@ -1269,8 +1269,9 @@ export class ImmersiveMemorize {
 
       // 学习卡片变化时，只更新本地状态，不重新加载整个词库
       if (changes.savedCards) {
-        if (this.debugMode) {
-          console.log('[ImmersiveMemorizeV2] 学习卡片变化，更新已学词汇列表')
+        if (this.debugMode && this.isMainFrame) {
+          // 只在主frame输出此日志，避免重复
+          console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 学习卡片变化，更新已学词汇列表`)
         }
         const savedCards = changes.savedCards.newValue || []
         this.learnedWords = new Set(savedCards.map((card: FlashCard) => card.word))
@@ -1303,7 +1304,7 @@ export class ImmersiveMemorize {
     }
 
     if (this.debugMode) {
-      console.log('[ImmersiveMemorizeV2] 强制刷新字幕处理')
+      console.log(`[ImmersiveMemorizeV2-${this.frameContext}] 强制刷新字幕处理`)
     }
     
     // 重置状态，强制重新处理
