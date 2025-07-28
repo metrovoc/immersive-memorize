@@ -26,6 +26,11 @@ export class ImmersiveMemorize {
   private isHotkeyEnabled: boolean = false
   private heavyResourcesLoaded: boolean = false
 
+  // 分析状态管理
+  private currentAnalysisPromise: Promise<void> | null = null
+  private lastProcessedText: string = ''
+  private isProcessing: boolean = false
+
   private captureHotkey: string = 's'
   private debugMode: boolean = true
   private enableScreenshot: boolean = false
@@ -221,38 +226,79 @@ export class ImmersiveMemorize {
     // 确保在有有效字幕时启用快捷键
     this.enableHotkeyListener()
 
-    // 清除现有高亮
-    this.clearAllHighlights()
-    this.currentTargetWord = null
-    this.currentTargetElement = null
+    // 提取当前字幕文本用于去重判断
+    const currentTexts = containers
+      .map(c => c.innerText?.trim())
+      .filter(t => t)
+      .join('|')
 
-    // 按优先级处理容器
-    for (const container of containers) {
-      const text = container.innerText?.trim()
-      if (!text) continue
-
-      // 重置处理标记
-      container.dataset.imProcessed = ''
-
-      // 尝试处理这个容器
-      const targetWord = await this.subtitleProcessor.processAndHighlight(container)
-
-      if (targetWord) {
-        this.currentTargetWord = targetWord
-        this.currentTargetElement = document.querySelector('.im-current-target')
-        container.dataset.imProcessed = 'true'
-
-        if (this.debugMode) {
-          console.log(
-            `[ImmersiveMemorizeV2] 找到目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`
-          )
-        }
-        return // 找到目标词汇后停止处理
+    // 检查是否与上次处理的文本相同
+    if (currentTexts === this.lastProcessedText && !this.isProcessing) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 字幕文本未变化，跳过处理')
       }
+      return
     }
 
-    if (this.debugMode) {
-      console.log('[ImmersiveMemorizeV2] 当前字幕无未学词汇')
+    // 如果当前正在处理，等待完成
+    if (this.currentAnalysisPromise) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 等待当前分析完成...')
+      }
+      await this.currentAnalysisPromise
+    }
+
+    // 创建新的分析Promise
+    this.currentAnalysisPromise = this.doProcessSubtitles(containers, currentTexts)
+    await this.currentAnalysisPromise
+    this.currentAnalysisPromise = null
+  }
+
+  /**
+   * 执行实际的字幕处理
+   */
+  private async doProcessSubtitles(containers: HTMLElement[], currentTexts: string): Promise<void> {
+    this.isProcessing = true
+    this.lastProcessedText = currentTexts
+
+    try {
+      // 清除现有高亮（只在开始新的分析时清除）
+      this.clearAllHighlights()
+      this.currentTargetWord = null
+      this.currentTargetElement = null
+
+      // 按优先级处理容器
+      for (const container of containers) {
+        const text = container.innerText?.trim()
+        if (!text) continue
+
+        // 重置处理标记
+        container.dataset.imProcessed = ''
+
+        // 尝试处理这个容器
+        const targetWord = await this.subtitleProcessor!.processAndHighlight(container)
+
+        if (targetWord) {
+          this.currentTargetWord = targetWord
+          this.currentTargetElement = document.querySelector('.im-current-target')
+          container.dataset.imProcessed = 'true'
+
+          if (this.debugMode) {
+            console.log(
+              `[ImmersiveMemorizeV2] 找到目标词汇: ${targetWord.word} (原形: ${targetWord.lemma})`
+            )
+          }
+          return // 找到目标词汇后停止处理
+        }
+      }
+
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 当前字幕无未学词汇')
+      }
+    } catch (error) {
+      console.error('[ImmersiveMemorizeV2] 处理字幕时发生错误:', error)
+    } finally {
+      this.isProcessing = false
     }
   }
 
@@ -1473,6 +1519,11 @@ export class ImmersiveMemorize {
   cleanup(): void {
     // 清理快捷键监听器
     this.disableHotkeyListener()
+
+    // 重置分析状态
+    this.currentAnalysisPromise = null
+    this.lastProcessedText = ''
+    this.isProcessing = false
 
     if (this.activeSource) {
       this.activeSource.cleanup()
