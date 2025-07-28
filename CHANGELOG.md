@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.9.0](https://github.com/metrovoc/immersive-memorize/compare/v0.8.10...v0.9.0)
+## [v0.10.0](https://github.com/metrovoc/immersive-memorize/compare/v0.9.0...v0.10.0)
+
+### Commits
+
+- feat: 重构存储管理逻辑，支持数据迁移和IndexedDB集成 [`6447c98`](https://github.com/metrovoc/immersive-memorize/commit/6447c9828f5cb7694632da84f04ebd53a8a02ee4)
+- feat: 添加插件启动行为设置界面和逻辑 [`a52c20b`](https://github.com/metrovoc/immersive-memorize/commit/a52c20b0584f95a6be37c8f74f94f3f32d8123e1)
+- feat: 添加截图渲染工具类及相关功能 [`f39d567`](https://github.com/metrovoc/immersive-memorize/commit/f39d567c9a96f45a5efc1af1aa99cdc53bd4554e)
+
+## [v0.9.0](https://github.com/metrovoc/immersive-memorize/compare/v0.8.10...v0.9.0) - 2025-07-28
 
 ### Merged
 
