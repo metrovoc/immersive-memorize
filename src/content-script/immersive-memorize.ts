@@ -4,7 +4,7 @@
  */
 
 import type { FlashCard, ExtensionSettings, Word } from '@/types'
-import { VocabLibraryManager } from '@/lib/vocab-library'
+import { CachedRemoteVocabLibraryManager } from '@/lib/vocab-library/cached-remote-vocab-library'
 import { SubtitleProcessor } from './subtitle-processor'
 import { SubtitleSourceRegistry, PageContextBuilder } from './subtitle-sources/registry'
 import { NetflixSubtitleSource } from './subtitle-sources/netflix-source'
@@ -12,7 +12,7 @@ import { CustomSRTSubtitleSource } from './subtitle-sources/custom-srt-source'
 import type { ISubtitleSource, PageContext } from './subtitle-sources/types'
 
 export class ImmersiveMemorize {
-  private vocabLibraryManager: VocabLibraryManager
+  private vocabLibraryManager: CachedRemoteVocabLibraryManager
   private subtitleProcessor: SubtitleProcessor | null = null
   private sourceRegistry: SubtitleSourceRegistry
   private activeSource: ISubtitleSource | null = null
@@ -49,7 +49,7 @@ export class ImmersiveMemorize {
       console.log(`[ImmersiveMemorizeV2] 初始化${this.frameContext}frame模式`)
     }
 
-    this.vocabLibraryManager = new VocabLibraryManager()
+    this.vocabLibraryManager = new CachedRemoteVocabLibraryManager()
     this.sourceRegistry = new SubtitleSourceRegistry(this.debugMode)
     this.customSource = new CustomSRTSubtitleSource(this.debugMode)
     this.initializeSubtitleSources()
