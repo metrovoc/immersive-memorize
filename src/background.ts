@@ -1,5 +1,26 @@
 // src/background.ts
 
+import { JapaneseAnalyzerService, type AnalyzeRequest } from './background/japanese-analyzer-service'
+
+// 初始化中央化日语分析服务
+const analyzerService = JapaneseAnalyzerService.getInstance()
+
+// Service Worker 启动时预热分析器
+chrome.runtime.onStartup.addListener(() => {
+  console.log('[Background] Service Worker 启动，开始预热日语分析器...')
+  analyzerService.initialize().catch(error => {
+    console.error('[Background] 预热分析器失败:', error)
+  })
+})
+
+// 扩展安装/更新时也进行预热
+chrome.runtime.onInstalled.addListener(() => {
+  console.log('[Background] 扩展安装/更新，开始预热日语分析器...')
+  analyzerService.initialize().catch(error => {
+    console.error('[Background] 预热分析器失败:', error)
+  })
+})
+
 /**
  * Handle video selection request from popup
  */
@@ -57,6 +78,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'INITIATE_VIDEO_SELECTION') {
     handleVideoSelectionRequest(sendResponse)
     return true // Keep sendResponse alive for async response
+  }
+
+  // Handle Japanese text analysis requests
+  if (request.type === 'ANALYZE_TEXT') {
+    const analyzeRequest = request as AnalyzeRequest
+    analyzerService.handleAnalyzeRequest(analyzeRequest, sendResponse)
+    return true // Keep sendResponse alive for async response
+  }
+
+  // Handle analyzer service status requests
+  if (request.type === 'GET_ANALYZER_STATUS') {
+    const status = analyzerService.getStatus()
+    sendResponse({ success: true, status })
+    return true
   }
 
   // Check if it's a screenshot request
