@@ -64,6 +64,8 @@ export class RemoteJapaneseAnalyzer {
 
   /**
    * 创建缓存键
+   * 注意：这里只缓存分词结果，不包含学习状态
+   * 因为分词结果不会因为学习状态而改变
    */
   private createCacheKey(text: string): string {
     return text.trim().toLowerCase()

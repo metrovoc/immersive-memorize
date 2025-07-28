@@ -29,7 +29,9 @@ export class ImmersiveMemorize {
   // 分析状态管理
   private currentAnalysisPromise: Promise<void> | null = null
   private lastProcessedText: string = ''
+  private lastLearnedWordsSnapshot: string = ''
   private isProcessing: boolean = false
+  private refreshDebounceTimeout: NodeJS.Timeout | null = null
 
   private captureHotkey: string = 's'
   private debugMode: boolean = true
@@ -232,12 +234,25 @@ export class ImmersiveMemorize {
       .filter(t => t)
       .join('|')
 
-    // 检查是否与上次处理的文本相同
-    if (currentTexts === this.lastProcessedText && !this.isProcessing) {
+    // 生成当前已学词汇快照
+    const currentLearnedSnapshot = Array.from(this.learnedWords).sort().join(',')
+
+    // 检查是否与上次处理的文本和学习状态相同
+    const textUnchanged = currentTexts === this.lastProcessedText
+    const learnedStateUnchanged = currentLearnedSnapshot === this.lastLearnedWordsSnapshot
+    
+    if (textUnchanged && learnedStateUnchanged && !this.isProcessing) {
       if (this.debugMode) {
-        console.log('[ImmersiveMemorizeV2] 字幕文本未变化，跳过处理')
+        console.log('[ImmersiveMemorizeV2] 字幕文本和学习状态未变化，跳过处理')
       }
       return
+    }
+
+    // 如果是学习状态变化但文本相同，说明用户刚学了一个词，需要重新分析
+    if (textUnchanged && !learnedStateUnchanged) {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 检测到学习状态变化，重新分析相同字幕寻找下个词汇')
+      }
     }
 
     // 如果当前正在处理，等待完成
@@ -249,7 +264,7 @@ export class ImmersiveMemorize {
     }
 
     // 创建新的分析Promise
-    this.currentAnalysisPromise = this.doProcessSubtitles(containers, currentTexts)
+    this.currentAnalysisPromise = this.doProcessSubtitles(containers, currentTexts, currentLearnedSnapshot)
     await this.currentAnalysisPromise
     this.currentAnalysisPromise = null
   }
@@ -257,9 +272,10 @@ export class ImmersiveMemorize {
   /**
    * 执行实际的字幕处理
    */
-  private async doProcessSubtitles(containers: HTMLElement[], currentTexts: string): Promise<void> {
+  private async doProcessSubtitles(containers: HTMLElement[], currentTexts: string, learnedSnapshot: string): Promise<void> {
     this.isProcessing = true
     this.lastProcessedText = currentTexts
+    this.lastLearnedWordsSnapshot = learnedSnapshot
 
     try {
       // 清除现有高亮（只在开始新的分析时清除）
@@ -1278,8 +1294,25 @@ export class ImmersiveMemorize {
       return
     }
 
-    const containers = this.activeSource.detectSubtitleContainers()
-    this.processSubtitleContainers(containers)
+    // 防抖处理，避免短时间内多次刷新
+    if (this.refreshDebounceTimeout) {
+      clearTimeout(this.refreshDebounceTimeout)
+    }
+
+    this.refreshDebounceTimeout = setTimeout(() => {
+      if (this.debugMode) {
+        console.log('[ImmersiveMemorizeV2] 执行防抖后的字幕刷新')
+      }
+      
+      // 重置状态，强制重新处理
+      this.lastProcessedText = ''
+      this.lastLearnedWordsSnapshot = ''
+
+      const containers = this.activeSource?.detectSubtitleContainers() || []
+      this.processSubtitleContainers(containers)
+      
+      this.refreshDebounceTimeout = null
+    }, 50) // 50ms防抖
   }
 
   /**
@@ -1523,7 +1556,14 @@ export class ImmersiveMemorize {
     // 重置分析状态
     this.currentAnalysisPromise = null
     this.lastProcessedText = ''
+    this.lastLearnedWordsSnapshot = ''
     this.isProcessing = false
+
+    // 清理防抖计时器
+    if (this.refreshDebounceTimeout) {
+      clearTimeout(this.refreshDebounceTimeout)
+      this.refreshDebounceTimeout = null
+    }
 
     if (this.activeSource) {
       this.activeSource.cleanup()
