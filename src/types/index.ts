@@ -73,6 +73,7 @@ export type ViewMode =
   | 'level-detail'
   | 'vocab-list'
   | 'learned-words'
+  | 'activation-settings'
 
 export interface ViewState {
   mode: ViewMode

@@ -38,11 +38,18 @@ class Application {
       this.cleanup()
     })
 
-    // 监听扩展程序消息，支持手动清理
+    // 监听扩展程序消息，支持手动清理和状态检查
     chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
       if (request.action === 'cleanup') {
         this.cleanup()
         sendResponse({ success: true })
+        return true
+      }
+
+      // Respond to ping messages from background script to indicate script is running
+      if (request.type === 'PING') {
+        sendResponse({ pong: true })
+        return true
       }
     })
   }
@@ -55,7 +62,6 @@ class Application {
       console.error('[Application] 清理时发生错误:', error)
     }
   }
-
 
   private showNotification(
     message: string,

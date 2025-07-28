@@ -83,7 +83,9 @@ class PopupManager {
     this.timeOffsetSlider = document.getElementById('time-offset-slider') as HTMLInputElement
     this.timeOffsetInput = document.getElementById('time-offset-input') as HTMLInputElement
     this.resetStylesButton = document.getElementById('reset-subtitle-styles') as HTMLButtonElement
-    this.forceFullscreenCheckbox = document.getElementById('force-fullscreen-checkbox') as HTMLInputElement
+    this.forceFullscreenCheckbox = document.getElementById(
+      'force-fullscreen-checkbox'
+    ) as HTMLInputElement
 
     this.vocabLibraryManager = new VocabLibraryManager()
   }
@@ -563,14 +565,14 @@ class PopupManager {
   private async handleForceFullscreenChange(): Promise<void> {
     this.forceFullscreenMode = this.forceFullscreenCheckbox.checked
     await this.saveForceFullscreenSetting()
-    
+
     // 通知content script更新设置
     try {
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true })
       if (tab.id) {
         await chrome.tabs.sendMessage(tab.id, {
           action: 'setForceFullscreenMode',
-          enabled: this.forceFullscreenMode
+          enabled: this.forceFullscreenMode,
         })
       }
     } catch (error) {
@@ -587,6 +589,11 @@ class PopupManager {
 // 删除全局声明，不再需要
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // Send activation message to background script to enable on the current tab.
+  chrome.runtime.sendMessage({ type: 'ACTIVATE_ON_CURRENT_TAB' }).catch(err => {
+    console.error('Error sending activation message:', err)
+  })
+
   // 创建新的NavBar + Tab架构UI
   const container = document.querySelector('.container')!
   container.innerHTML = `
