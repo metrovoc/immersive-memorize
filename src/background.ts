@@ -34,11 +34,14 @@ loadActivationSettings().then(() => {
 
 // 启动数据迁移检查
 console.log('[Background] 开始启动迁移检查...')
-migrationManager.migrate().then(() => {
-  console.log('[Background] Data migration check completed')
-}).catch(error => {
-  console.error('[Background] Data migration failed:', error)
-})
+migrationManager
+  .migrate()
+  .then(() => {
+    console.log('[Background] Data migration check completed')
+  })
+  .catch(error => {
+    console.error('[Background] Data migration failed:', error)
+  })
 
 /**
  * Pre-warms services to ensure they are ready when needed.
@@ -313,7 +316,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return
       }
 
-      const tabId = tabs[0].id
+      const tab = tabs[0]
+      const tabId = tab.id!
+      
+      // Check if the tab has a valid URL for script injection
+      if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('moz-extension://') || tab.url.startsWith('edge://')) {
+        console.log(`[Background] Skipping activation on special URL: ${tab.url}`)
+        setIcon(false, tabId)
+        sendResponse({ success: true, message: '当前页面不支持扩展功能' })
+        return
+      }
+
       console.log(`[Background] Received activation request for tab ${tabId}`)
       manuallyActivatedTabs.add(tabId)
 
@@ -395,24 +408,45 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   // Handle storage requests
-  if (request.type && ['GET_CARDS', 'ADD_CARD', 'DELETE_CARD', 'GET_CARDS_BY_LEVEL', 'GET_LEARNED_WORDS', 'GET_SCREENSHOT', 'CLEAR_ALL_DATA', 'MIGRATE_DATA'].includes(request.type)) {
-    console.log('[Background] 收到存储请求:', request.type, request.payload ? 'with payload' : 'no payload')
-    
+  if (
+    request.type &&
+    [
+      'GET_CARDS',
+      'ADD_CARD',
+      'DELETE_CARD',
+      'GET_CARDS_BY_LEVEL',
+      'GET_LEARNED_WORDS',
+      'GET_SCREENSHOT',
+      'CLEAR_ALL_DATA',
+      'MIGRATE_DATA',
+    ].includes(request.type)
+  ) {
+    console.log(
+      '[Background] 收到存储请求:',
+      request.type,
+      request.payload ? 'with payload' : 'no payload'
+    )
+
     const storageMessage = {
       type: request.type,
-      payload: request.payload
+      payload: request.payload,
     }
-    
-    storageService.handleStorageMessage(storageMessage)
+
+    storageService
+      .handleStorageMessage(storageMessage)
       .then(response => {
-        console.log('[Background] 存储请求处理完成:', request.type, response.success ? 'success' : 'failed')
+        console.log(
+          '[Background] 存储请求处理完成:',
+          request.type,
+          response.success ? 'success' : 'failed'
+        )
         sendResponse(response)
       })
       .catch(error => {
         console.error('[Background] Storage request failed:', error)
         sendResponse({ success: false, error: error.message })
       })
-    
+
     return true // Keep sendResponse alive for async response
   }
 
@@ -422,7 +456,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (sender.tab && sender.tab.id) {
       chrome.tabs.captureVisibleTab(
         sender.tab.windowId,
-        { format: 'jpeg', quality: 90 }, // Use lossy JPEG format with high quality
+        { format: 'jpeg', quality: 75 }, // Use lossy JPEG format with medium quality
         dataUrl => {
           if (chrome.runtime.lastError) {
             // If there's an error (e.g., user denies permission), log it and send back null
