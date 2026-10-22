@@ -26,10 +26,12 @@ Steps to reproduce the behavior:
 
 <!-- If applicable, add screenshots to help explain your problem. -->
 
-### Environment (please complete the following information):
+### Environment
 
-- OS: <!-- [e.g. macOS, Windows] -->
-- Version: <!-- [e.g. 22] -->
+- OS: <!-- e.g. macOS 15, Windows 11 -->
+- Chrome version: <!-- chrome://version -->
+- Extension version: <!-- shown on the About tab of the extension's options page -->
+- Website: <!-- e.g. Netflix, or the site where you loaded custom subtitles -->
 
 ### Additional context
 
