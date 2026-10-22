@@ -1,84 +1,49 @@
-import type { Word as AnalyzerWord } from '@/lib/japanese-analyzer/common'
+export type { Word } from '@/lib/japanese-analyzer/common'
 
-export type Word = AnalyzerWord
+export const JLPT_LEVELS = ['N5', 'N4', 'N3', 'N2', 'N1'] as const
+export type JlptLevel = (typeof JLPT_LEVELS)[number]
 
 export interface FlashCard {
   id: number
-  word: string // This should be the lemma of the word
+  /** Dictionary form (lemma) of the word. */
+  word: string
+  /** Sanitized HTML of the subtitle line, including ruby annotations. */
   sentence: string
+  /** Playback position in seconds. */
   timestamp: number
+  /** JPEG data URL, or an empty string when there is none or it was not loaded. */
   screenshot: string
+  /** Set when a card is loaded without its screenshot data. */
+  hasScreenshot?: boolean
   sourceTitle: string
   createdAt: string
-  level?: string // JLPT level (N5, N4, N3, N2, N1)
-  definition?: string // Word definition
-  reading?: string // Word reading (furigana)
-  // Netflix详细信息
-  showTitle?: string // 剧集名称
-  seasonNumber?: string // 季数
-  episodeNumber?: string // 集数
-  episodeTitle?: string // 集标题
+  level?: string
+  definition?: string
+  reading?: string
+  showTitle?: string
+  seasonNumber?: string
+  episodeNumber?: string
+  episodeTitle?: string
 }
 
 export interface VocabEntry {
   VocabKanji: string
   VocabFurigana: string
   VocabDefCN: string
+  VocabDefEN?: string
   VocabPitch: string
   VocabPoS: string
   Frequency: string
   Level: string
 }
 
-export interface VocabLibrary {
-  id: string
-  name: string
-  description: string
-  icon: string
-  data: VocabEntry[]
-  totalWords: number
-  levels: string[]
+/** Dictionary details stored on a flashcard. */
+export interface WordInfo {
+  level: JlptLevel
+  reading: string
+  definition: string
 }
 
-export interface LevelProgress {
-  level: string
-  enabled: boolean
-  totalWords: number
-  progress: number
-}
+export type CsvExportFormat = 'anki-html' | 'plain-text' | 'rich-text'
 
-export interface VocabLibrarySettings {
-  selectedLibraryId: string
-  levelSettings: Record<string, LevelProgress>
-}
-
-export interface ExtensionSettings {
-  jlptWordlist: string[]
-  captureHotkey: string
-  debugMode: boolean
-  enableScreenshot: boolean // 新增：截图功能开关，默认false
-  savedCards: FlashCard[]
-  vocabLibrarySettings: VocabLibrarySettings
-  csvExportFormat: 'plain-text' | 'anki-html' | 'rich-text' // CSV导出格式设置
-}
-
-export interface NotificationType {
-  message: string
-  type: 'success' | 'error' | 'warning' | 'info'
-}
-
-export type ViewMode =
-  | 'overview'
-  | 'library-detail'
-  | 'level-detail'
-  | 'vocab-list'
-  | 'learned-words'
-  | 'activation-settings'
-
-export interface ViewState {
-  mode: ViewMode
-  libraryId?: string
-  level?: string
-  breadcrumb: string[]
-  highlight?: string // Add highlight support for word highlighting
-}
+export type ToastType = 'success' | 'error' | 'warning' | 'info'

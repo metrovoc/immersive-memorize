@@ -1,48 +1,28 @@
-import * as kuromoji from "@patdx/kuromoji";
+import { TokenizerBuilder } from '@patdx/kuromoji'
 
-let tokenizer: any | null = null;
+type Tokenizer = Awaited<ReturnType<TokenizerBuilder['build']>>
 
-export async function getKuromojiTokenizer(): Promise<any> {
-  if (tokenizer) {
-    return tokenizer;
-  }
+let tokenizer: Promise<Tokenizer> | null = null
 
-  console.log("[KuromojiLoader] Creating custom loader...");
-
-  const dicPath = chrome.runtime.getURL("dict/kuromoji/");
-
-  // Custom loader to fetch dictionary files from the extension's resources
-  const customLoader = {
-    async loadArrayBuffer(url: string): Promise<ArrayBuffer> {
-      // The 'url' passed by kuromoji is just the filename (e.g., "base.dat.gz")
-      // We need to construct the full path to the extension's dictionary file.
-      const fullUrl = `${dicPath}${url.replace('.gz', '')}`;
-      console.log(`[KuromojiLoader] Loading dictionary file: ${fullUrl}`);
-      try {
-        const response = await fetch(fullUrl);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch ${fullUrl}: ${response.statusText}`);
+/** Builds the tokenizer once from the gzipped dictionaries bundled with the extension. */
+export function getTokenizer(): Promise<Tokenizer> {
+  tokenizer ??= new TokenizerBuilder({
+    loader: {
+      async loadArrayBuffer(file: string) {
+        const response = await fetch(chrome.runtime.getURL(`dict/kuromoji/${file}`))
+        if (!response.ok || !response.body) {
+          throw new Error(`Failed to load dictionary file ${file}: ${response.status}`)
         }
-        return await response.arrayBuffer();
-      } catch (error) {
-        console.error(`[KuromojiLoader] Error fetching dictionary file: ${url}`, error);
-        throw error; // Re-throw to stop the process
-      }
+        return new Response(
+          response.body.pipeThrough(new DecompressionStream('gzip'))
+        ).arrayBuffer()
+      },
     },
-  };
-
-  console.log("[KuromojiLoader] Starting tokenizer build...");
-
-  try {
-    const _tokenizer = await new (kuromoji as any).TokenizerBuilder({
-      loader: customLoader,
-    }).build();
-    
-    console.log("[KuromojiLoader] Tokenizer built successfully.");
-    tokenizer = _tokenizer;
-    return tokenizer;
-  } catch (err) {
-    console.error("[KuromojiLoader] Failed to build tokenizer:", err);
-    throw err;
-  }
+  })
+    .build()
+    .catch(error => {
+      tokenizer = null
+      throw error
+    })
+  return tokenizer
 }

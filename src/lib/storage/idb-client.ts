@@ -1,250 +1,111 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb'
-import type { FlashCardDB, ScreenshotDB, SettingDB, VocabCacheDB } from './types'
-import { DB_NAME, DB_VERSION, STORES, INDEXES } from './types'
+import { DB_NAME, DB_VERSION, STORES, type FlashCardRecord, type ScreenshotRecord } from './types'
 
-// 数据库 Schema 定义
 interface ImmersiveMemorizeDB extends DBSchema {
   [STORES.FLASHCARDS]: {
     key: number
-    value: FlashCardDB
-    indexes: {
-      [INDEXES.FLASHCARDS.BY_WORD]: string
-      [INDEXES.FLASHCARDS.BY_LEVEL]: string
-      [INDEXES.FLASHCARDS.BY_CREATED_AT]: string
-    }
+    value: FlashCardRecord
+    indexes: { 'by-word': string; 'by-level': string; 'by-created-at': string }
   }
   [STORES.SCREENSHOTS]: {
     key: number
-    value: ScreenshotDB
-    indexes: {
-      [INDEXES.SCREENSHOTS.BY_CARD_ID]: number
-    }
+    value: ScreenshotRecord
+    indexes: { 'by-card-id': number }
   }
   [STORES.SETTINGS]: {
     key: string
-    value: SettingDB
-    indexes: {
-      [INDEXES.SETTINGS.BY_KEY]: string
-    }
+    value: { key: string; value: unknown; updatedAt: string }
+    indexes: { 'by-key': string }
   }
   [STORES.VOCAB_CACHE]: {
     key: string
-    value: VocabCacheDB
-    indexes: {
-      [INDEXES.VOCAB_CACHE.BY_LEVEL]: string
-    }
+    value: { word: string; level: string }
+    indexes: { 'by-level': string }
   }
 }
 
-class IDBClient {
-  private db: IDBPDatabase<ImmersiveMemorizeDB> | null = null
-  private initPromise: Promise<void> | null = null
+let database: Promise<IDBPDatabase<ImmersiveMemorizeDB>> | null = null
 
-  async initDB(): Promise<void> {
-    if (this.db) return
-    
-    if (!this.initPromise) {
-      this.initPromise = this._initDB()
-    }
-    
-    await this.initPromise
-  }
+function db(): Promise<IDBPDatabase<ImmersiveMemorizeDB>> {
+  database ??= openDB<ImmersiveMemorizeDB>(DB_NAME, DB_VERSION, {
+    upgrade(db) {
+      if (!db.objectStoreNames.contains(STORES.FLASHCARDS)) {
+        const cards = db.createObjectStore(STORES.FLASHCARDS, { keyPath: 'id' })
+        cards.createIndex('by-word', 'word')
+        cards.createIndex('by-level', 'level')
+        cards.createIndex('by-created-at', 'createdAt')
+      }
+      if (!db.objectStoreNames.contains(STORES.SCREENSHOTS)) {
+        const screenshots = db.createObjectStore(STORES.SCREENSHOTS, { keyPath: 'cardId' })
+        screenshots.createIndex('by-card-id', 'cardId')
+      }
+      if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
+        db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' }).createIndex('by-key', 'key')
+      }
+      if (!db.objectStoreNames.contains(STORES.VOCAB_CACHE)) {
+        db.createObjectStore(STORES.VOCAB_CACHE, { keyPath: 'word' }).createIndex(
+          'by-level',
+          'level'
+        )
+      }
+    },
+    blocking() {
+      // Another context needs a newer schema; let it upgrade and reconnect on next use.
+      void database?.then(connection => connection.close())
+      database = null
+    },
+  }).catch(error => {
+    database = null
+    throw error
+  })
+  return database
+}
 
-  private async _initDB(): Promise<void> {
-    try {
-      this.db = await openDB<ImmersiveMemorizeDB>(DB_NAME, DB_VERSION, {
-        upgrade(db) {
-          // 创建 flashcards store
-          if (!db.objectStoreNames.contains(STORES.FLASHCARDS)) {
-            const flashcardsStore = db.createObjectStore(STORES.FLASHCARDS, { keyPath: 'id' })
-            flashcardsStore.createIndex(INDEXES.FLASHCARDS.BY_WORD, 'word')
-            flashcardsStore.createIndex(INDEXES.FLASHCARDS.BY_LEVEL, 'level')
-            flashcardsStore.createIndex(INDEXES.FLASHCARDS.BY_CREATED_AT, 'createdAt')
-          }
+export const idbClient = {
+  async getCards(): Promise<FlashCardRecord[]> {
+    return (await db()).getAll(STORES.FLASHCARDS)
+  },
 
-          // 创建 screenshots store
-          if (!db.objectStoreNames.contains(STORES.SCREENSHOTS)) {
-            const screenshotsStore = db.createObjectStore(STORES.SCREENSHOTS, { keyPath: 'cardId' })
-            screenshotsStore.createIndex(INDEXES.SCREENSHOTS.BY_CARD_ID, 'cardId')
-          }
+  async getScreenshotIds(): Promise<Set<number>> {
+    return new Set(await (await db()).getAllKeys(STORES.SCREENSHOTS))
+  },
 
-          // 创建 settings store
-          if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
-            const settingsStore = db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' })
-            settingsStore.createIndex(INDEXES.SETTINGS.BY_KEY, 'key')
-          }
+  async getScreenshot(cardId: number): Promise<ScreenshotRecord | undefined> {
+    return (await db()).get(STORES.SCREENSHOTS, cardId)
+  },
 
-          // 创建 vocab_cache store
-          if (!db.objectStoreNames.contains(STORES.VOCAB_CACHE)) {
-            const vocabStore = db.createObjectStore(STORES.VOCAB_CACHE, { keyPath: 'word' })
-            vocabStore.createIndex(INDEXES.VOCAB_CACHE.BY_LEVEL, 'level')
-          }
-        }
-      })
-      
-      console.log('[IDBClient] 数据库初始化成功')
-    } catch (error) {
-      console.error('[IDBClient] 数据库初始化失败:', error)
-      throw new Error(`IndexedDB 初始化失败: ${error}`)
-    }
-  }
+  async getScreenshots(): Promise<ScreenshotRecord[]> {
+    return (await db()).getAll(STORES.SCREENSHOTS)
+  },
 
-  // ===== FlashCard 操作 =====
-  async addCard(card: FlashCardDB): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    await this.db.add(STORES.FLASHCARDS, card)
-    console.log('[IDBClient] 添加卡片成功:', card.id)
-  }
-
-  async getCard(id: number): Promise<FlashCardDB | undefined> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.get(STORES.FLASHCARDS, id)
-  }
-
-  async getAllCards(): Promise<FlashCardDB[]> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.getAll(STORES.FLASHCARDS)
-  }
-
-  async getCardsByLevel(level: string): Promise<FlashCardDB[]> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.getAllFromIndex(STORES.FLASHCARDS, INDEXES.FLASHCARDS.BY_LEVEL, level)
-  }
-
-  async getCardsByWord(word: string): Promise<FlashCardDB[]> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.getAllFromIndex(STORES.FLASHCARDS, INDEXES.FLASHCARDS.BY_WORD, word)
-  }
+  async putCards(cards: FlashCardRecord[], screenshots: ScreenshotRecord[]): Promise<void> {
+    const tx = (await db()).transaction([STORES.FLASHCARDS, STORES.SCREENSHOTS], 'readwrite')
+    await Promise.all([
+      ...cards.map(card => tx.objectStore(STORES.FLASHCARDS).put(card)),
+      ...screenshots.map(screenshot => tx.objectStore(STORES.SCREENSHOTS).put(screenshot)),
+      tx.done,
+    ])
+  },
 
   async deleteCard(id: number): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const tx = this.db.transaction([STORES.FLASHCARDS, STORES.SCREENSHOTS], 'readwrite')
-    
+    const tx = (await db()).transaction([STORES.FLASHCARDS, STORES.SCREENSHOTS], 'readwrite')
     await Promise.all([
       tx.objectStore(STORES.FLASHCARDS).delete(id),
-      tx.objectStore(STORES.SCREENSHOTS).delete(id)
+      tx.objectStore(STORES.SCREENSHOTS).delete(id),
+      tx.done,
     ])
-    
-    await tx.done
-    console.log('[IDBClient] 删除卡片成功:', id)
-  }
+  },
 
-  async batchAddCards(cards: FlashCardDB[]): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const tx = this.db.transaction(STORES.FLASHCARDS, 'readwrite')
-    const store = tx.objectStore(STORES.FLASHCARDS)
-    
-    await Promise.all(cards.map(card => store.add(card)))
-    await tx.done
-    
-    console.log('[IDBClient] 批量添加卡片成功:', cards.length)
-  }
-
-  // ===== Screenshot 操作 =====
-  async addScreenshot(screenshot: ScreenshotDB): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    await this.db.put(STORES.SCREENSHOTS, screenshot)
-    console.log('[IDBClient] 添加截图成功:', screenshot.cardId)
-  }
-
-  async getScreenshot(cardId: number): Promise<ScreenshotDB | undefined> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.get(STORES.SCREENSHOTS, cardId)
-  }
-
-  async batchAddScreenshots(screenshots: ScreenshotDB[]): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const tx = this.db.transaction(STORES.SCREENSHOTS, 'readwrite')
-    const store = tx.objectStore(STORES.SCREENSHOTS)
-    
-    await Promise.all(screenshots.map(screenshot => store.put(screenshot)))
-    await tx.done
-    
-    console.log('[IDBClient] 批量添加截图成功:', screenshots.length)
-  }
-
-  // ===== Settings 操作 =====
-  async setSetting(key: string, value: any): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const setting: SettingDB = {
-      key,
-      value,
-      updatedAt: new Date().toISOString()
-    }
-    
-    await this.db.put(STORES.SETTINGS, setting)
-  }
-
-  async getSetting(key: string): Promise<any> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const result = await this.db.get(STORES.SETTINGS, key)
-    return result?.value
-  }
-
-  // ===== Vocab Cache 操作 =====
-  async cacheVocab(vocab: VocabCacheDB): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    await this.db.put(STORES.VOCAB_CACHE, vocab)
-  }
-
-  async getCachedVocab(word: string): Promise<VocabCacheDB | undefined> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    return await this.db.get(STORES.VOCAB_CACHE, word)
-  }
-
-  // ===== 管理操作 =====
-  async clearAllData(): Promise<void> {
-    await this.initDB()
-    if (!this.db) throw new Error('数据库未初始化')
-    
-    const tx = this.db.transaction([STORES.FLASHCARDS, STORES.SCREENSHOTS, STORES.VOCAB_CACHE], 'readwrite')
-    
+  async clear(): Promise<void> {
+    const tx = (await db()).transaction(
+      [STORES.FLASHCARDS, STORES.SCREENSHOTS, STORES.VOCAB_CACHE],
+      'readwrite'
+    )
     await Promise.all([
       tx.objectStore(STORES.FLASHCARDS).clear(),
       tx.objectStore(STORES.SCREENSHOTS).clear(),
-      tx.objectStore(STORES.VOCAB_CACHE).clear()
+      tx.objectStore(STORES.VOCAB_CACHE).clear(),
+      tx.done,
     ])
-    
-    await tx.done
-    console.log('[IDBClient] 清空所有数据完成')
-  }
-
-  async close(): Promise<void> {
-    if (this.db) {
-      this.db.close()
-      this.db = null
-      console.log('[IDBClient] 数据库连接已关闭')
-    }
-  }
+  },
 }
-
-// 导出单例实例
-export const idbClient = new IDBClient()

@@ -1,4 +1,3 @@
-
 import {
   Word,
   KuromojiToken,
@@ -52,227 +51,211 @@ import {
   NN,
   SA,
   PartOfSpeech,
-} from "./common";
+} from './common'
 
 export class VeProcessor {
   public buildWords(tokens: KuromojiToken[]): Word[] {
-    const words: Word[] = [];
-    let i = 0;
+    const words: Word[] = []
+    let i = 0
 
     while (i < tokens.length) {
-      const currentToken = tokens[i];
-      const previousToken = i > 0 ? tokens[i - 1] : null;
-      const followingToken = i + 1 < tokens.length ? tokens[i + 1] : null;
+      const currentToken = tokens[i]
+      const followingToken = i + 1 < tokens.length ? tokens[i + 1] : null
 
-      let pos: string | null = null;
-      let grammar: string | undefined = undefined;
-      let eat_next = false;
-      let eat_lemma = true;
-      let attach_to_previous = false;
-      let also_attach_to_lemma = false;
-      let update_pos = false;
+      let pos: string | null = null
+      let grammar: string | undefined = undefined
+      let eat_next = false
+      let eat_lemma = true
+      let attach_to_previous = false
+      let also_attach_to_lemma = false
+      let update_pos = false
 
       switch (currentToken.pos) {
         case MEISHI:
-          pos = PartOfSpeech.Noun;
+          pos = PartOfSpeech.Noun
           switch (currentToken.pos_detail_1) {
             case KOYUUMEISHI:
-              pos = PartOfSpeech.ProperNoun;
-              break;
+              pos = PartOfSpeech.ProperNoun
+              break
             case DAIMEISHI:
-              pos = PartOfSpeech.Pronoun;
-              break;
+              pos = PartOfSpeech.Pronoun
+              break
             case FUKUSHIKANOU:
             case SAHENSETSUZOKU:
             case KEIYOUDOUSHIGOKAN:
             case NAIKEIYOUSHIGOKAN:
               if (followingToken) {
                 if (followingToken.conjugated_type === SAHEN_SURU) {
-                  pos = PartOfSpeech.Verb;
-                  eat_next = true;
+                  pos = PartOfSpeech.Verb
+                  eat_next = true
                 } else if (followingToken.conjugated_type === TOKUSHU_DA) {
-                  pos = PartOfSpeech.Adjective;
+                  pos = PartOfSpeech.Adjective
                   if (followingToken.conjugated_form === TAIGENSETSUZOKU) {
-                    eat_next = true;
-                    eat_lemma = true; // Correctly append lemma
+                    eat_next = true
+                    eat_lemma = true // Correctly append lemma
                   }
                 } else if (followingToken.conjugated_type === TOKUSHU_NAI) {
-                  pos = PartOfSpeech.Adjective;
-                  eat_next = true;
-                } else if (
-                  followingToken.pos === JOSHI &&
-                  followingToken.surface_form === NI
-                ) {
-                  pos = PartOfSpeech.Adverb;
+                  pos = PartOfSpeech.Adjective
+                  eat_next = true
+                } else if (followingToken.pos === JOSHI && followingToken.surface_form === NI) {
+                  pos = PartOfSpeech.Adverb
                 }
               }
-              break;
+              break
             case HIJIRITSU:
             case TOKUSHU:
               if (followingToken && currentToken.pos_detail_2) {
                 switch (currentToken.pos_detail_2) {
                   case FUKUSHIKANOU:
-                    if (
-                      followingToken.pos === JOSHI &&
-                      followingToken.surface_form === NI
-                    ) {
-                      pos = PartOfSpeech.Adverb;
-                      eat_next = true;
-                      eat_lemma = false;
+                    if (followingToken.pos === JOSHI && followingToken.surface_form === NI) {
+                      pos = PartOfSpeech.Adverb
+                      eat_next = true
+                      eat_lemma = false
                     }
-                    break;
+                    break
                   case JODOUSHIGOKAN:
                     if (followingToken.conjugated_type === TOKUSHU_DA) {
-                      pos = PartOfSpeech.Verb;
-                      grammar = "auxiliary";
+                      pos = PartOfSpeech.Verb
+                      grammar = 'auxiliary'
                       if (followingToken.conjugated_form === TAIGENSETSUZOKU) {
-                        eat_next = true;
+                        eat_next = true
                       }
                     } else if (
                       followingToken.pos === JOSHI &&
                       followingToken.pos_detail_1 === FUKUSHIKA
                     ) {
-                      pos = PartOfSpeech.Adverb;
-                      eat_next = true;
-                      eat_lemma = false;
+                      pos = PartOfSpeech.Adverb
+                      eat_next = true
+                      eat_lemma = false
                     }
-                    break;
+                    break
                   case KEIYOUDOUSHIGOKAN:
-                    pos = PartOfSpeech.Adjective;
+                    pos = PartOfSpeech.Adjective
                     if (
                       (followingToken.conjugated_type === TOKUSHU_DA &&
                         followingToken.conjugated_form === TAIGENSETSUZOKU) ||
                       followingToken.pos_detail_1 === RENTAIKA
                     ) {
-                      eat_next = true;
+                      eat_next = true
                     }
-                    break;
+                    break
                 }
               }
-              break;
+              break
             case KAZU:
-              pos = PartOfSpeech.Number;
+              pos = PartOfSpeech.Number
               if (
                 words.length > 0 &&
                 words[words.length - 1].part_of_speech === PartOfSpeech.Number
               ) {
-                attach_to_previous = true;
-                also_attach_to_lemma = true;
+                attach_to_previous = true
+                also_attach_to_lemma = true
               }
-              break;
+              break
             case SETSUBI:
               if (currentToken.pos_detail_2 === JINMEI) {
-                pos = PartOfSpeech.Suffix;
+                pos = PartOfSpeech.Suffix
               } else {
-                if (
-                  currentToken.pos_detail_2 === TOKUSHU &&
-                  currentToken.basic_form === SA
-                ) {
-                  update_pos = true;
-                  pos = PartOfSpeech.Noun;
+                if (currentToken.pos_detail_2 === TOKUSHU && currentToken.basic_form === SA) {
+                  update_pos = true
+                  pos = PartOfSpeech.Noun
                 } else {
-                  also_attach_to_lemma = true;
+                  also_attach_to_lemma = true
                 }
-                attach_to_previous = true;
+                attach_to_previous = true
               }
-              break;
+              break
             case SETSUZOKUSHITEKI:
-              pos = PartOfSpeech.Conjunction;
-              break;
+              pos = PartOfSpeech.Conjunction
+              break
             case DOUSHIHIJIRITSUTEKI:
-              pos = PartOfSpeech.Verb;
-              grammar = "nominal";
-              break;
+              pos = PartOfSpeech.Verb
+              grammar = 'nominal'
+              break
           }
-          break;
+          break
         case SETTOUSHI:
-          pos = PartOfSpeech.Prefix;
-          break;
-        case JODOUSHI:
-          pos = PartOfSpeech.Postposition;
-          const lastWord = words.length > 0 ? words[words.length - 1] : null;
-          const lastToken = lastWord
-            ? lastWord.tokens[lastWord.tokens.length - 1]
-            : null;
+          pos = PartOfSpeech.Prefix
+          break
+        case JODOUSHI: {
+          pos = PartOfSpeech.Postposition
+          const lastWord = words.length > 0 ? words[words.length - 1] : null
+          const lastToken = lastWord ? lastWord.tokens[lastWord.tokens.length - 1] : null
 
           if (
             (!lastToken || lastToken.pos_detail_1 !== KAKARIJOSHI) &&
-            [
-              TOKUSHU_TA,
-              TOKUSHU_NAI,
-              TOKUSHU_TAI,
-              TOKUSHU_MASU,
-              TOKUSHU_NU,
-            ].includes(currentToken.conjugated_type)
+            [TOKUSHU_TA, TOKUSHU_NAI, TOKUSHU_TAI, TOKUSHU_MASU, TOKUSHU_NU].includes(
+              currentToken.conjugated_type
+            )
           ) {
-            attach_to_previous = true;
+            attach_to_previous = true
           } else if (
             currentToken.conjugated_type === FUHENKAGATA &&
             currentToken.basic_form === NN
           ) {
-            attach_to_previous = true;
+            attach_to_previous = true
           } else if (
             (currentToken.conjugated_type === TOKUSHU_DA ||
               currentToken.conjugated_type === TOKUSHU_DESU) &&
             currentToken.surface_form !== NA
           ) {
-            pos = PartOfSpeech.Verb;
+            pos = PartOfSpeech.Verb
           }
-          break;
+          break
+        }
         case DOUSHI:
-          pos = PartOfSpeech.Verb;
+          pos = PartOfSpeech.Verb
           if (
             currentToken.pos_detail_1 === SETSUBI ||
-            (currentToken.pos_detail_1 === HIJIRITSU &&
-              currentToken.conjugated_form !== MEIREI_I)
+            (currentToken.pos_detail_1 === HIJIRITSU && currentToken.conjugated_form !== MEIREI_I)
           ) {
-            attach_to_previous = true;
+            attach_to_previous = true
           }
-          break;
+          break
         case KEIYOUSHI:
-          pos = PartOfSpeech.Adjective;
-          break;
+          pos = PartOfSpeech.Adjective
+          break
         case JOSHI:
-          pos = PartOfSpeech.Postposition;
+          pos = PartOfSpeech.Postposition
           if (
             currentToken.pos_detail_1 === SETSUZOKUJOSHI &&
             [TE, DE, BA].includes(currentToken.surface_form)
           ) {
-            attach_to_previous = true;
+            attach_to_previous = true
           }
-          break;
+          break
         case RENTAISHI:
-          pos = PartOfSpeech.Determiner;
-          break;
+          pos = PartOfSpeech.Determiner
+          break
         case SETSUZOKUSHI:
-          pos = PartOfSpeech.Conjunction;
-          break;
+          pos = PartOfSpeech.Conjunction
+          break
         case FUKUSHI:
-          pos = PartOfSpeech.Adverb;
-          break;
+          pos = PartOfSpeech.Adverb
+          break
         case KIGOU:
-          pos = PartOfSpeech.Symbol;
-          break;
+          pos = PartOfSpeech.Symbol
+          break
         case FIRAA:
         case KANDOUSHI:
-          pos = PartOfSpeech.Interjection;
-          break;
+          pos = PartOfSpeech.Interjection
+          break
         case SONOTA:
-          pos = PartOfSpeech.Other;
-          break;
+          pos = PartOfSpeech.Other
+          break
       }
 
       if (attach_to_previous && words.length > 0) {
-        const lastWord = words[words.length - 1];
-        lastWord.tokens.push(currentToken);
-        lastWord.word += currentToken.surface_form;
-        lastWord.extra.reading += currentToken.reading || "";
-        lastWord.extra.transcription += currentToken.pronunciation || "";
+        const lastWord = words[words.length - 1]
+        lastWord.tokens.push(currentToken)
+        lastWord.word += currentToken.surface_form
+        lastWord.extra.reading += currentToken.reading || ''
+        lastWord.extra.transcription += currentToken.pronunciation || ''
         if (also_attach_to_lemma) {
-          lastWord.lemma += currentToken.basic_form;
+          lastWord.lemma += currentToken.basic_form
         }
         if (update_pos && pos) {
-          lastWord.part_of_speech = pos;
+          lastWord.part_of_speech = pos
         }
       } else {
         const newWord: Word = {
@@ -281,26 +264,26 @@ export class VeProcessor {
           part_of_speech: pos || PartOfSpeech.TBD,
           tokens: [currentToken],
           extra: {
-            reading: currentToken.reading || "",
-            transcription: currentToken.pronunciation || "",
+            reading: currentToken.reading || '',
+            transcription: currentToken.pronunciation || '',
             ...(grammar && { grammar }),
           },
-        };
+        }
 
         if (eat_next && followingToken) {
-          newWord.tokens.push(followingToken);
-          newWord.word += followingToken.surface_form;
-          newWord.extra.reading += followingToken.reading || "";
-          newWord.extra.transcription += followingToken.pronunciation || "";
+          newWord.tokens.push(followingToken)
+          newWord.word += followingToken.surface_form
+          newWord.extra.reading += followingToken.reading || ''
+          newWord.extra.transcription += followingToken.pronunciation || ''
           if (eat_lemma) {
-            newWord.lemma += followingToken.basic_form;
+            newWord.lemma += followingToken.basic_form
           }
-          i++; // Increment to skip the next token
+          i++ // Increment to skip the next token
         }
-        words.push(newWord);
+        words.push(newWord)
       }
-      i++; // Move to the next token
+      i++ // Move to the next token
     }
-    return words;
+    return words
   }
 }

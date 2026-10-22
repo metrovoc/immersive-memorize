@@ -1,0 +1,491 @@
+{
+  "extName": {
+    "message": "Immersive Memorize"
+  },
+  "extDescription": {
+    "message": "Learn Japanese while you watch: highlights new JLPT words in Netflix or custom subtitles and saves them as Anki flashcards.",
+    "description": "Chrome Web Store summary; at most 132 characters."
+  },
+  "htmlLang": {
+    "message": "en",
+    "description": "BCP 47 language tag for the lang attribute of extension pages."
+  },
+  "definitionLanguage": {
+    "message": "en",
+    "description": "Language of dictionary definitions: \"en\" for English, \"zh\" for Chinese."
+  },
+  "optionsTitle": {
+    "message": "Options"
+  },
+  "loading": {
+    "message": "Loading…"
+  },
+  "cancel": {
+    "message": "Cancel"
+  },
+  "previousPage": {
+    "message": "Previous page"
+  },
+  "nextPage": {
+    "message": "Next page"
+  },
+  "pageInfo": {
+    "message": "Page $1 of $2"
+  },
+  "toastNoNewWord": {
+    "message": "No new words in this subtitle"
+  },
+  "toastAlreadySaved": {
+    "message": "“$1” is already saved"
+  },
+  "toastSaved": {
+    "message": "Saved “$1”"
+  },
+  "toastSavedInflected": {
+    "message": "Saved “$1” ($2)"
+  },
+  "toastSaveFailed": {
+    "message": "Couldn't save the card: $1"
+  },
+  "toastScreenshotFailed": {
+    "message": "Saved without a screenshot. To capture this tab, click the Immersive Memorize icon, or allow access to all sites in Settings."
+  },
+  "toastStartFailed": {
+    "message": "Immersive Memorize couldn't start: $1"
+  },
+  "toastSubtitlesLoaded": {
+    "message": "Loaded $1 subtitle lines from $2"
+  },
+  "pickerVideoNumber": {
+    "message": "Video $1"
+  },
+  "pickerChooseVideo": {
+    "message": "Use this video"
+  },
+  "pickerTitle": {
+    "message": "Load subtitles"
+  },
+  "pickerDropPrompt": {
+    "message": "Choose a subtitle file or drop it here"
+  },
+  "pickerFormats": {
+    "message": "SRT, VTT, ASS or SSA"
+  },
+  "pickerUnsupportedFile": {
+    "message": "Choose an SRT, VTT, ASS or SSA file."
+  },
+  "pickerNoCues": {
+    "message": "No subtitles were found in this file."
+  },
+  "popupOpenOptions": {
+    "message": "Open options"
+  },
+  "popupTabCards": {
+    "message": "Cards"
+  },
+  "popupTabSubtitles": {
+    "message": "Subtitles"
+  },
+  "popupCardCount": {
+    "message": "Flashcards: $1"
+  },
+  "popupViewAll": {
+    "message": "View all"
+  },
+  "popupEmptyTitle": {
+    "message": "No flashcards yet"
+  },
+  "popupEmptyHint": {
+    "message": "Watch something in Japanese and press $1 to save the highlighted word."
+  },
+  "popupCustomSubtitlesTitle": {
+    "message": "Custom subtitles"
+  },
+  "popupCustomSubtitlesDescription": {
+    "message": "Use your own SRT, VTT or ASS file with any video on this page."
+  },
+  "popupLoadSubtitles": {
+    "message": "Load subtitle file"
+  },
+  "popupAppearanceTitle": {
+    "message": "Subtitle appearance"
+  },
+  "popupFontSize": {
+    "message": "Font size"
+  },
+  "popupPosition": {
+    "message": "Distance from bottom"
+  },
+  "popupBackground": {
+    "message": "Background opacity"
+  },
+  "popupTimeOffset": {
+    "message": "Timing offset"
+  },
+  "popupTimeOffsetHint": {
+    "message": "Positive values show subtitles earlier."
+  },
+  "popupPinSubtitles": {
+    "message": "Pin to bottom of screen"
+  },
+  "popupPinSubtitlesHint": {
+    "message": "Use this if subtitles are misplaced or hidden by the player."
+  },
+  "popupResetStyle": {
+    "message": "Reset to defaults"
+  },
+  "popupStatusActive": {
+    "message": "Active on this page"
+  },
+  "popupStatusUnavailable": {
+    "message": "Not available on this page"
+  },
+  "popupPageNotSupported": {
+    "message": "Immersive Memorize can't run on this page."
+  },
+  "popupNoVideo": {
+    "message": "No video was found on this page."
+  },
+  "popupNoVideoNeedsAccess": {
+    "message": "No video was found. If the player is embedded from another site, allow access to all sites and try again."
+  },
+  "popupAllowAllSites": {
+    "message": "Allow access to all sites"
+  },
+  "cardDelete": {
+    "message": "Delete card"
+  },
+  "cardDeleted": {
+    "message": "Card deleted"
+  },
+  "cardViewScreenshot": {
+    "message": "View screenshot"
+  },
+  "cardScreenshotAlt": {
+    "message": "Screenshot from the video"
+  },
+  "cardScreenshotMissing": {
+    "message": "This card has no screenshot."
+  },
+  "confirmDeleteCard": {
+    "message": "Delete this card?"
+  },
+  "confirmDeleteAll": {
+    "message": "Delete all $1 cards? This can't be undone."
+  },
+  "optionsTabCards": {
+    "message": "Flashcards"
+  },
+  "optionsTabVocabulary": {
+    "message": "Vocabulary"
+  },
+  "optionsTabSettings": {
+    "message": "Settings"
+  },
+  "optionsTabAbout": {
+    "message": "About"
+  },
+  "cardsTitle": {
+    "message": "Flashcards"
+  },
+  "cardsDescription": {
+    "message": "Cards saved so far: $1"
+  },
+  "cardsSearch": {
+    "message": "Search cards"
+  },
+  "cardsSort": {
+    "message": "Sort cards"
+  },
+  "cardsSortNewest": {
+    "message": "Newest first"
+  },
+  "cardsSortOldest": {
+    "message": "Oldest first"
+  },
+  "cardsSortWord": {
+    "message": "By word"
+  },
+  "cardsSortLevel": {
+    "message": "By JLPT level"
+  },
+  "cardsExportCsv": {
+    "message": "Export CSV"
+  },
+  "cardsDeleteAll": {
+    "message": "Delete all"
+  },
+  "cardsDeletedAll": {
+    "message": "All cards deleted"
+  },
+  "cardsExported": {
+    "message": "Cards exported: $1"
+  },
+  "cardsExportFailed": {
+    "message": "Export failed: $1"
+  },
+  "cardsEmptyTitle": {
+    "message": "No flashcards yet"
+  },
+  "cardsEmptyHint": {
+    "message": "While watching Japanese video, press $1 to save the highlighted word."
+  },
+  "cardsNoMatches": {
+    "message": "No cards match your search."
+  },
+  "vocabularyTitle": {
+    "message": "Vocabulary"
+  },
+  "vocabularyDescription": {
+    "message": "Choose the JLPT levels to learn. New words from these levels are highlighted in subtitles."
+  },
+  "vocabularyLevelProgress": {
+    "message": "$1 of $2 learned"
+  },
+  "vocabularyLearnLevel": {
+    "message": "Learn"
+  },
+  "vocabularyBrowse": {
+    "message": "Browse words"
+  },
+  "vocabularyBack": {
+    "message": "All levels"
+  },
+  "vocabularyLevelTitle": {
+    "message": "$1 words"
+  },
+  "vocabularyLevelDescription": {
+    "message": "$1 words, $2 learned"
+  },
+  "vocabularySearch": {
+    "message": "Search words, readings or meanings"
+  },
+  "vocabularyLearned": {
+    "message": "Learned"
+  },
+  "vocabularyNoDefinition": {
+    "message": "No definition available"
+  },
+  "vocabularyPitch": {
+    "message": "Pitch accent $1"
+  },
+  "vocabularyShowMore": {
+    "message": "Show more ($1 left)"
+  },
+  "vocabularyNoMatches": {
+    "message": "No words match your search."
+  },
+  "posNoun": {
+    "message": "noun"
+  },
+  "posVerb": {
+    "message": "verb"
+  },
+  "posTransitiveVerb": {
+    "message": "transitive verb"
+  },
+  "posIntransitiveVerb": {
+    "message": "intransitive verb"
+  },
+  "posAuxiliaryVerb": {
+    "message": "auxiliary verb"
+  },
+  "posAuxiliaryAdjective": {
+    "message": "auxiliary adjective"
+  },
+  "posIAdjective": {
+    "message": "i-adjective"
+  },
+  "posNaAdjective": {
+    "message": "na-adjective"
+  },
+  "posAdnominal": {
+    "message": "pre-noun adjectival"
+  },
+  "posExpression": {
+    "message": "expression"
+  },
+  "posIdiom": {
+    "message": "idiom"
+  },
+  "posSuffix": {
+    "message": "suffix"
+  },
+  "posPrefix": {
+    "message": "prefix"
+  },
+  "posParticle": {
+    "message": "particle"
+  },
+  "posConjunction": {
+    "message": "conjunction"
+  },
+  "posAdverb": {
+    "message": "adverb"
+  },
+  "posPronoun": {
+    "message": "pronoun"
+  },
+  "posInterjection": {
+    "message": "interjection"
+  },
+  "posGodan": {
+    "message": "godan"
+  },
+  "posIchidan": {
+    "message": "ichidan"
+  },
+  "posSuru": {
+    "message": "suru"
+  },
+  "settingsTitle": {
+    "message": "Settings"
+  },
+  "settingsDescription": {
+    "message": "Settings sync across browsers signed in to the same Chrome profile."
+  },
+  "settingsCapture": {
+    "message": "Capturing words"
+  },
+  "settingsHotkey": {
+    "message": "Save key"
+  },
+  "settingsHotkeyHint": {
+    "message": "Click the box, then press a letter. Pressing it while a word is highlighted saves that word as a card."
+  },
+  "settingsHotkeySaved": {
+    "message": "Save key set to $1"
+  },
+  "settingsHotkeyInvalid": {
+    "message": "Press a letter key (A–Z)."
+  },
+  "settingsScreenshots": {
+    "message": "Save a screenshot with each card"
+  },
+  "settingsScreenshotsHint": {
+    "message": "Captures the video frame when you save a word. Chrome asks for access to all sites; without it, screenshots work on tabs where you clicked the toolbar icon. If screenshots come out black, turn off hardware acceleration in Chrome's system settings."
+  },
+  "settingsScreenshotsNoAccess": {
+    "message": "Screenshots will work on tabs where you click the Immersive Memorize icon."
+  },
+  "settingsExport": {
+    "message": "Export"
+  },
+  "settingsExportFormat": {
+    "message": "CSV format"
+  },
+  "exportFormatAnkiHtml": {
+    "message": "Anki (HTML, recommended)"
+  },
+  "exportFormatPlainText": {
+    "message": "Plain text"
+  },
+  "exportFormatRichText": {
+    "message": "Rich text (HTML with furigana)"
+  },
+  "exportFormatHintAnkiHtml": {
+    "message": "Furigana in Anki's 漢字[かんじ] format, the saved word in bold and screenshots embedded. Anki recognizes the fields automatically."
+  },
+  "exportFormatHintPlainText": {
+    "message": "Text only, without furigana or screenshots. Opens in any spreadsheet."
+  },
+  "exportFormatHintRichText": {
+    "message": "HTML that keeps furigana as ruby text and colors the saved word, for apps that display HTML."
+  },
+  "settingsSites": {
+    "message": "Sites"
+  },
+  "settingsEverywhere": {
+    "message": "Run on every site"
+  },
+  "settingsEverywhereHint": {
+    "message": "Starts automatically wherever you browse. Chrome asks for access to all sites."
+  },
+  "settingsSitesHint": {
+    "message": "Starts automatically on these sites. Elsewhere, click the toolbar icon to start it. Patterns use Chrome's format, such as *://*.example.com/*."
+  },
+  "settingsSitePattern": {
+    "message": "Site pattern"
+  },
+  "settingsSiteAdd": {
+    "message": "Add"
+  },
+  "settingsSiteRemove": {
+    "message": "Remove site"
+  },
+  "settingsSiteGrant": {
+    "message": "Grant access"
+  },
+  "settingsSiteInvalid": {
+    "message": "Invalid pattern"
+  },
+  "settingsSiteInvalidHint": {
+    "message": "Enter a pattern such as *://*.example.com/*"
+  },
+  "settingsAccessDenied": {
+    "message": "Chrome didn't grant access, so nothing was changed."
+  },
+  "settingsBackup": {
+    "message": "Backup"
+  },
+  "settingsBackupHint": {
+    "message": "Cards are stored only in this browser. Export a backup to keep them safe or move them to another computer. Importing adds the cards that aren't here yet."
+  },
+  "settingsBackupExport": {
+    "message": "Export backup"
+  },
+  "settingsBackupImport": {
+    "message": "Import backup"
+  },
+  "settingsBackupExported": {
+    "message": "Cards backed up: $1"
+  },
+  "settingsBackupImported": {
+    "message": "Cards imported: $1 (already present: $2)"
+  },
+  "settingsBackupImportFailed": {
+    "message": "Import failed: $1"
+  },
+  "settingsBackupInvalid": {
+    "message": "This file is not an Immersive Memorize backup."
+  },
+  "settingsAdvanced": {
+    "message": "Advanced"
+  },
+  "settingsDebug": {
+    "message": "Debug logging"
+  },
+  "settingsDebugHint": {
+    "message": "Writes detailed logs to the browser console, for troubleshooting."
+  },
+  "aboutVersion": {
+    "message": "Version $1"
+  },
+  "aboutWhatTitle": {
+    "message": "About"
+  },
+  "aboutPrivacy": {
+    "message": "Your cards and screenshots stay in this browser, and settings sync through your Chrome profile. Nothing is sent to any other server."
+  },
+  "aboutSource": {
+    "message": "Source code"
+  },
+  "aboutIssues": {
+    "message": "Report a problem"
+  },
+  "aboutStore": {
+    "message": "Chrome Web Store"
+  },
+  "aboutCredits": {
+    "message": "Credits"
+  },
+  "aboutCreditKuromoji": {
+    "message": "Japanese morphological analysis (Apache License 2.0)"
+  },
+  "aboutCreditJlpt": {
+    "message": "JLPT word lists and Chinese definitions, by egg rolls"
+  },
+  "aboutCreditJmdict": {
+    "message": "English definitions, © Electronic Dictionary Research and Development Group, CC BY-SA 4.0"
+  }
+}

@@ -1,0 +1,488 @@
+{
+  "extName": {
+    "message": "Immersive Memorize"
+  },
+  "extDescription": {
+    "message": "看剧学日语：在 Netflix 或自定义字幕中高亮 JLPT 生词，一键保存为可导入 Anki 的记忆卡片。"
+  },
+  "htmlLang": {
+    "message": "zh-CN"
+  },
+  "definitionLanguage": {
+    "message": "zh"
+  },
+  "optionsTitle": {
+    "message": "设置"
+  },
+  "loading": {
+    "message": "加载中…"
+  },
+  "cancel": {
+    "message": "取消"
+  },
+  "previousPage": {
+    "message": "上一页"
+  },
+  "nextPage": {
+    "message": "下一页"
+  },
+  "pageInfo": {
+    "message": "第 $1 / $2 页"
+  },
+  "toastNoNewWord": {
+    "message": "当前字幕没有可学习的生词"
+  },
+  "toastAlreadySaved": {
+    "message": "“$1” 已经学过了"
+  },
+  "toastSaved": {
+    "message": "已学习 “$1”"
+  },
+  "toastSavedInflected": {
+    "message": "已学习 “$1”（$2）"
+  },
+  "toastSaveFailed": {
+    "message": "保存失败：$1"
+  },
+  "toastScreenshotFailed": {
+    "message": "已保存，但没有截图。要截取此标签页，请点击 Immersive Memorize 图标，或在设置中允许访问所有网站。"
+  },
+  "toastStartFailed": {
+    "message": "Immersive Memorize 启动失败：$1"
+  },
+  "toastSubtitlesLoaded": {
+    "message": "已从 $2 加载 $1 条字幕"
+  },
+  "pickerVideoNumber": {
+    "message": "视频 $1"
+  },
+  "pickerChooseVideo": {
+    "message": "选择此视频"
+  },
+  "pickerTitle": {
+    "message": "加载字幕"
+  },
+  "pickerDropPrompt": {
+    "message": "点击选择或拖拽字幕文件到此处"
+  },
+  "pickerFormats": {
+    "message": "支持 SRT、VTT、ASS、SSA"
+  },
+  "pickerUnsupportedFile": {
+    "message": "请选择 SRT、VTT、ASS 或 SSA 格式的字幕文件。"
+  },
+  "pickerNoCues": {
+    "message": "这个文件中没有找到字幕。"
+  },
+  "popupOpenOptions": {
+    "message": "打开设置"
+  },
+  "popupTabCards": {
+    "message": "记忆卡片"
+  },
+  "popupTabSubtitles": {
+    "message": "字幕"
+  },
+  "popupCardCount": {
+    "message": "记忆卡片：$1 张"
+  },
+  "popupViewAll": {
+    "message": "查看全部"
+  },
+  "popupEmptyTitle": {
+    "message": "还没有记忆卡片"
+  },
+  "popupEmptyHint": {
+    "message": "观看日语视频时，按 $1 键保存高亮的生词。"
+  },
+  "popupCustomSubtitlesTitle": {
+    "message": "自定义字幕"
+  },
+  "popupCustomSubtitlesDescription": {
+    "message": "为当前页面上的任意视频加载自己的 SRT、VTT 或 ASS 字幕。"
+  },
+  "popupLoadSubtitles": {
+    "message": "加载字幕文件"
+  },
+  "popupAppearanceTitle": {
+    "message": "字幕样式"
+  },
+  "popupFontSize": {
+    "message": "字体大小"
+  },
+  "popupPosition": {
+    "message": "距底部距离"
+  },
+  "popupBackground": {
+    "message": "背景不透明度"
+  },
+  "popupTimeOffset": {
+    "message": "时间偏移"
+  },
+  "popupTimeOffsetHint": {
+    "message": "正值会让字幕提前显示。"
+  },
+  "popupPinSubtitles": {
+    "message": "固定在屏幕底部"
+  },
+  "popupPinSubtitlesHint": {
+    "message": "如果字幕位置不对或被播放器遮挡，可以开启此选项。"
+  },
+  "popupResetStyle": {
+    "message": "恢复默认值"
+  },
+  "popupStatusActive": {
+    "message": "已在此页面启用"
+  },
+  "popupStatusUnavailable": {
+    "message": "此页面不可用"
+  },
+  "popupPageNotSupported": {
+    "message": "Immersive Memorize 无法在此页面运行。"
+  },
+  "popupNoVideo": {
+    "message": "此页面上没有找到视频。"
+  },
+  "popupNoVideoNeedsAccess": {
+    "message": "没有找到视频。如果播放器嵌入自其他网站，请允许访问所有网站后重试。"
+  },
+  "popupAllowAllSites": {
+    "message": "允许访问所有网站"
+  },
+  "cardDelete": {
+    "message": "删除卡片"
+  },
+  "cardDeleted": {
+    "message": "卡片已删除"
+  },
+  "cardViewScreenshot": {
+    "message": "查看截图"
+  },
+  "cardScreenshotAlt": {
+    "message": "视频截图"
+  },
+  "cardScreenshotMissing": {
+    "message": "这张卡片没有截图。"
+  },
+  "confirmDeleteCard": {
+    "message": "确定要删除这张卡片吗？"
+  },
+  "confirmDeleteAll": {
+    "message": "确定要删除全部 $1 张卡片吗？此操作无法撤销。"
+  },
+  "optionsTabCards": {
+    "message": "记忆卡片"
+  },
+  "optionsTabVocabulary": {
+    "message": "词汇库"
+  },
+  "optionsTabSettings": {
+    "message": "设置"
+  },
+  "optionsTabAbout": {
+    "message": "关于"
+  },
+  "cardsTitle": {
+    "message": "记忆卡片"
+  },
+  "cardsDescription": {
+    "message": "已保存 $1 张卡片"
+  },
+  "cardsSearch": {
+    "message": "搜索卡片"
+  },
+  "cardsSort": {
+    "message": "排序方式"
+  },
+  "cardsSortNewest": {
+    "message": "最新优先"
+  },
+  "cardsSortOldest": {
+    "message": "最早优先"
+  },
+  "cardsSortWord": {
+    "message": "按词汇"
+  },
+  "cardsSortLevel": {
+    "message": "按 JLPT 等级"
+  },
+  "cardsExportCsv": {
+    "message": "导出 CSV"
+  },
+  "cardsDeleteAll": {
+    "message": "全部删除"
+  },
+  "cardsDeletedAll": {
+    "message": "已删除所有卡片"
+  },
+  "cardsExported": {
+    "message": "已导出 $1 张卡片"
+  },
+  "cardsExportFailed": {
+    "message": "导出失败：$1"
+  },
+  "cardsEmptyTitle": {
+    "message": "还没有记忆卡片"
+  },
+  "cardsEmptyHint": {
+    "message": "观看日语视频时，按 $1 键即可保存高亮的生词。"
+  },
+  "cardsNoMatches": {
+    "message": "没有符合搜索条件的卡片。"
+  },
+  "vocabularyTitle": {
+    "message": "词汇库"
+  },
+  "vocabularyDescription": {
+    "message": "选择要学习的 JLPT 等级，这些等级中的生词会在字幕里高亮显示。"
+  },
+  "vocabularyLevelProgress": {
+    "message": "已学 $1 / $2"
+  },
+  "vocabularyLearnLevel": {
+    "message": "学习"
+  },
+  "vocabularyBrowse": {
+    "message": "浏览词汇"
+  },
+  "vocabularyBack": {
+    "message": "所有等级"
+  },
+  "vocabularyLevelTitle": {
+    "message": "$1 词汇"
+  },
+  "vocabularyLevelDescription": {
+    "message": "共 $1 个词汇，已学 $2 个"
+  },
+  "vocabularySearch": {
+    "message": "搜索词汇、读音或释义"
+  },
+  "vocabularyLearned": {
+    "message": "已学会"
+  },
+  "vocabularyNoDefinition": {
+    "message": "暂无释义"
+  },
+  "vocabularyPitch": {
+    "message": "音调 $1"
+  },
+  "vocabularyShowMore": {
+    "message": "显示更多（还有 $1 个）"
+  },
+  "vocabularyNoMatches": {
+    "message": "没有符合搜索条件的词汇。"
+  },
+  "posNoun": {
+    "message": "名词"
+  },
+  "posVerb": {
+    "message": "动词"
+  },
+  "posTransitiveVerb": {
+    "message": "他动词"
+  },
+  "posIntransitiveVerb": {
+    "message": "自动词"
+  },
+  "posAuxiliaryVerb": {
+    "message": "补助动词"
+  },
+  "posAuxiliaryAdjective": {
+    "message": "补助形容词"
+  },
+  "posIAdjective": {
+    "message": "形容词"
+  },
+  "posNaAdjective": {
+    "message": "形容动词"
+  },
+  "posAdnominal": {
+    "message": "连体词"
+  },
+  "posExpression": {
+    "message": "词组"
+  },
+  "posIdiom": {
+    "message": "惯用语"
+  },
+  "posSuffix": {
+    "message": "接尾词"
+  },
+  "posPrefix": {
+    "message": "接头词"
+  },
+  "posParticle": {
+    "message": "助词"
+  },
+  "posConjunction": {
+    "message": "接续词"
+  },
+  "posAdverb": {
+    "message": "副词"
+  },
+  "posPronoun": {
+    "message": "代词"
+  },
+  "posInterjection": {
+    "message": "感叹词"
+  },
+  "posGodan": {
+    "message": "五段"
+  },
+  "posIchidan": {
+    "message": "一段"
+  },
+  "posSuru": {
+    "message": "サ变"
+  },
+  "settingsTitle": {
+    "message": "设置"
+  },
+  "settingsDescription": {
+    "message": "设置会在登录同一 Chrome 账号的浏览器之间同步。"
+  },
+  "settingsCapture": {
+    "message": "学习生词"
+  },
+  "settingsHotkey": {
+    "message": "保存快捷键"
+  },
+  "settingsHotkeyHint": {
+    "message": "点击输入框后按下任意字母键。生词高亮时按下此键即可保存为卡片。"
+  },
+  "settingsHotkeySaved": {
+    "message": "快捷键已设置为 $1"
+  },
+  "settingsHotkeyInvalid": {
+    "message": "请按字母键（A–Z）。"
+  },
+  "settingsScreenshots": {
+    "message": "保存卡片时自动截图"
+  },
+  "settingsScreenshotsHint": {
+    "message": "保存生词时截取当前视频画面。Chrome 会请求访问所有网站的权限；未授权时，只有点击过工具栏图标的标签页才能截图。如果截图是黑屏，可以在 Chrome 的系统设置中关闭“硬件加速”。"
+  },
+  "settingsScreenshotsNoAccess": {
+    "message": "截图将只在点击过 Immersive Memorize 图标的标签页中可用。"
+  },
+  "settingsExport": {
+    "message": "导出"
+  },
+  "settingsExportFormat": {
+    "message": "CSV 格式"
+  },
+  "exportFormatAnkiHtml": {
+    "message": "Anki（HTML，推荐）"
+  },
+  "exportFormatPlainText": {
+    "message": "纯文本"
+  },
+  "exportFormatRichText": {
+    "message": "富文本（保留注音的 HTML）"
+  },
+  "exportFormatHintAnkiHtml": {
+    "message": "注音转换为 Anki 的 漢字[かんじ] 格式，生词加粗并嵌入截图。Anki 会自动识别各个字段。"
+  },
+  "exportFormatHintPlainText": {
+    "message": "仅包含文本，不含注音和截图，适合任何表格软件。"
+  },
+  "exportFormatHintRichText": {
+    "message": "保留 Ruby 注音并为生词着色的 HTML，适合支持 HTML 的应用。"
+  },
+  "settingsSites": {
+    "message": "启用网站"
+  },
+  "settingsEverywhere": {
+    "message": "在所有网站自动启用"
+  },
+  "settingsEverywhereHint": {
+    "message": "浏览任何网站时自动启用。Chrome 会请求访问所有网站的权限。"
+  },
+  "settingsSitesHint": {
+    "message": "在以下网站自动启用；在其他网站点击工具栏图标即可启用。网址模式使用 Chrome 的格式，例如 *://*.example.com/*。"
+  },
+  "settingsSitePattern": {
+    "message": "网址模式"
+  },
+  "settingsSiteAdd": {
+    "message": "添加"
+  },
+  "settingsSiteRemove": {
+    "message": "移除网站"
+  },
+  "settingsSiteGrant": {
+    "message": "授予权限"
+  },
+  "settingsSiteInvalid": {
+    "message": "无效的网址模式"
+  },
+  "settingsSiteInvalidHint": {
+    "message": "请输入类似 *://*.example.com/* 的网址模式"
+  },
+  "settingsAccessDenied": {
+    "message": "Chrome 未授予权限，设置没有改变。"
+  },
+  "settingsBackup": {
+    "message": "备份"
+  },
+  "settingsBackupHint": {
+    "message": "卡片只保存在当前浏览器中。导出备份可以防止数据丢失或迁移到其他电脑；导入时只会添加当前没有的卡片。"
+  },
+  "settingsBackupExport": {
+    "message": "导出备份"
+  },
+  "settingsBackupImport": {
+    "message": "导入备份"
+  },
+  "settingsBackupExported": {
+    "message": "已备份 $1 张卡片"
+  },
+  "settingsBackupImported": {
+    "message": "已导入 $1 张卡片（已存在 $2 张）"
+  },
+  "settingsBackupImportFailed": {
+    "message": "导入失败：$1"
+  },
+  "settingsBackupInvalid": {
+    "message": "这个文件不是 Immersive Memorize 的备份文件。"
+  },
+  "settingsAdvanced": {
+    "message": "高级"
+  },
+  "settingsDebug": {
+    "message": "调试日志"
+  },
+  "settingsDebugHint": {
+    "message": "在浏览器控制台输出详细日志，用于排查问题。"
+  },
+  "aboutVersion": {
+    "message": "版本 $1"
+  },
+  "aboutWhatTitle": {
+    "message": "关于"
+  },
+  "aboutPrivacy": {
+    "message": "卡片和截图只保存在当前浏览器中，设置通过 Chrome 账号同步。任何数据都不会发送到其他服务器。"
+  },
+  "aboutSource": {
+    "message": "源代码"
+  },
+  "aboutIssues": {
+    "message": "反馈问题"
+  },
+  "aboutStore": {
+    "message": "Chrome 应用商店"
+  },
+  "aboutCredits": {
+    "message": "致谢"
+  },
+  "aboutCreditKuromoji": {
+    "message": "日语分词（Apache License 2.0）"
+  },
+  "aboutCreditJlpt": {
+    "message": "JLPT 词表与中文释义，作者 egg rolls"
+  },
+  "aboutCreditJmdict": {
+    "message": "英文释义，© Electronic Dictionary Research and Development Group，CC BY-SA 4.0"
+  }
+}
