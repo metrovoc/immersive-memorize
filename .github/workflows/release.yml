@@ -47,7 +47,7 @@ jobs:
           changes=$(awk -v version="$VERSION" '
             index($0, "## [" version "]") == 1 { found = 1; next }
             found && /^## \[/ { exit }
-            found' CHANGELOG.md | sed '/^### Commits$/d;/^[[:space:]]*$/d')
+            found' CHANGELOG.md)
           previous=$(git describe --tags --abbrev=0 "$VERSION^" 2>/dev/null || true)
           {
             sed "s/{{VERSION}}/$VERSION/" .github/templates/release-notes.md | sed '/{{CHANGES}}/,$d'
