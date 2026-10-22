@@ -1,6 +1,6 @@
 {
   "name": "immersive-memorize",
-  "version": "0.10.0",
+  "version": "0.11.0",
   "private": true,
   "description": "Learn Japanese vocabulary from Netflix and custom subtitles, and export contextual flashcards to Anki",
   "license": "MIT",
