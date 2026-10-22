@@ -1,23 +1,9 @@
-## 🎉 What's Changed in {{VERSION}}
+## Changes in {{VERSION}}
 
-### ✨ Changes
+{{CHANGES}}
 
-{{CHANGELOG_CONTENT}}
+## Install
 
----
+Get the extension from the [Chrome Web Store](https://chromewebstore.google.com/detail/immersive-memorize/hckblmpcigelkfeinckgflolbdbmdnai), where it updates automatically.
 
-## 📦 Chrome Extension for Seamless Language Learning Experience
-
-Learn Japanese from streaming services like Netflix by creating contextual flashcards from subtitles
-
-### 🔧 Installation Guide
-
-1. Download the `.zip` file from the **Assets** section below
-2. Extract the zip file to a folder
-3. Open Chrome and navigate to `chrome://extensions/`
-4. Enable **Developer mode** (toggle in top right)
-5. Click **Load unpacked** and select the extracted folder
-6. Configure JLPT vocabulary levels in extension options
-7. Press hotkey (default: **S**) while watching to learn vocabulary from subtitles
-
-{{CHANGELOG_LINK}}
+To install this release by hand, download the zip below, extract it, open `chrome://extensions`, turn on **Developer mode**, click **Load unpacked** and select the extracted folder.

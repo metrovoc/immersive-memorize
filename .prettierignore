@@ -1,0 +1,5 @@
+.metrovoc/
+.claude/
+dict/
+CHANGELOG.md
+package-lock.json

@@ -1,139 +1,68 @@
-name: Release Extension
+name: Build and release
 
 on:
   push:
-    branches:
-      - main
-      - master
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
+  pull_request:
   workflow_dispatch:
 
-# Add explicit permissions for the workflow
 permissions:
   contents: write
-  actions: read
-  id-token: write
 
 jobs:
-  build-and-release:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          fetch-depth: 0
 
-      - name: Install dependencies
-        run: npm ci
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
 
-      - name: Build extension
-        run: npm run build
+      - run: npm ci
+      - run: npm run check
+      - run: npm run package
 
-      - name: Get version from manifest
-        id: get_version
+      - name: Read version
+        id: version
+        run: echo "version=v$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: immersive-memorize-${{ steps.version.outputs.version }}
+          path: immersive-memorize-${{ steps.version.outputs.version }}.zip
+          retention-days: 30
+
+      - name: Write release notes
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          VERSION=$(node -p "require('./manifest.json').version")
-          echo "version=v${VERSION}" >> $GITHUB_OUTPUT
-          echo "Extension version: ${VERSION}"
-
-      - name: Create extension packages
-        run: |
-          # Create zip package for Chrome Web Store and manual installation
-          cd dist
-          zip -r "../immersive-memorize-${{ steps.get_version.outputs.version }}.zip" .
-          cd ..
-
-      - name: Verify package contents
-        run: |
-          echo "=== ZIP Package Contents ==="
-          unzip -l "immersive-memorize-${{ steps.get_version.outputs.version }}.zip"
-
-      - name: Generate release notes from changelog
-        id: release_notes
-        run: |
-          VERSION=$(node -p "require('./manifest.json').version")
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD~1 2>/dev/null || echo "")
-
-          # Copy template file
-          cp .github/templates/release-notes.md release_notes.md
-
-          # Extract current version changes from CHANGELOG.md
-          if [ -f "CHANGELOG.md" ]; then
-            # Find the current version section and extract until next version or end
-            CHANGELOG_CONTENT=$(awk "/## \[v${VERSION}\]/{flag=1; next} /## \[v[0-9]/{flag=0} flag" CHANGELOG.md | \
-            sed 's/### Commits//g' | \
-            sed '/^[[:space:]]*$/d')
-            
-            # If no content was found, add fallback
-            if [ -z "$CHANGELOG_CONTENT" ]; then
-              CHANGELOG_CONTENT="- Version ${VERSION} released with new features and improvements"
+          # The changelog section of this version, without its heading.
+          changes=$(awk -v version="$VERSION" '
+            index($0, "## [" version "]") == 1 { found = 1; next }
+            found && /^## \[/ { exit }
+            found' CHANGELOG.md | sed '/^### Commits$/d;/^[[:space:]]*$/d')
+          previous=$(git describe --tags --abbrev=0 "$VERSION^" 2>/dev/null || true)
+          {
+            sed "s/{{VERSION}}/$VERSION/" .github/templates/release-notes.md | sed '/{{CHANGES}}/,$d'
+            echo "${changes:-- Maintenance release.}"
+            sed '1,/{{CHANGES}}/d' .github/templates/release-notes.md
+            if [ -n "$previous" ]; then
+              echo
+              echo "**Full changelog:** https://github.com/$REPOSITORY/compare/$previous...$VERSION"
             fi
-          else
-            CHANGELOG_CONTENT="- Version ${VERSION} released with new features and improvements"
-          fi
+          } > release-notes.md
+          cat release-notes.md
 
-          # Replace placeholders in template using Python for reliable multiline handling
-          python3 << EOF
-          import re
-
-          # Read template
-          with open('release_notes.md', 'r') as f:
-              content = f.read()
-
-          # Replace VERSION
-          content = content.replace('{{VERSION}}', 'v${VERSION}')
-
-          # Replace CHANGELOG_CONTENT
-          changelog_content = '''${CHANGELOG_CONTENT}'''
-          content = content.replace('{{CHANGELOG_CONTENT}}', changelog_content)
-
-          # Replace CHANGELOG_LINK
-          if '${PREV_TAG}':
-              changelog_link = '''### 📋 Full Changelog
-
-          **Full Changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG}...v${VERSION}'''
-          else:
-              changelog_link = '''### 📋 Changelog
-
-          See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for detailed version history.'''
-
-          content = content.replace('{{CHANGELOG_LINK}}', changelog_link)
-
-          # Write result
-          with open('release_notes.md', 'w') as f:
-              f.write(content)
-          EOF
-
-      - name: Preview generated release notes
-        run: |
-          echo "=== Generated Release Notes Preview ==="
-          cat release_notes.md
-          echo "======================================="
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          tag_name: ${{ steps.get_version.outputs.version }}
-          name: Immersive Memorize ${{ steps.get_version.outputs.version }}
-          body_path: release_notes.md
-          draft: false
-          prerelease: false
-          files: |
-            immersive-memorize-${{ steps.get_version.outputs.version }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: extension-packages-${{ steps.get_version.outputs.version }}
-          path: |
-            immersive-memorize-${{ steps.get_version.outputs.version }}.zip
-          retention-days: 30
+          name: Immersive Memorize ${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: immersive-memorize-${{ steps.version.outputs.version }}.zip

@@ -1,78 +1,59 @@
-const path = require('path');
-const zlib = require('zlib');
-const CopyWebpackPlugin = require('copy-webpack-plugin');
-const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const path = require('path')
+const CopyWebpackPlugin = require('copy-webpack-plugin')
+const MiniCssExtractPlugin = require('mini-css-extract-plugin')
 
-module.exports = {
+module.exports = (_env, argv) => ({
   entry: {
+    background: './src/background.ts',
     'content-script': './src/content-script/index.ts',
     'popup/popup': './src/popup/popup.ts',
     'options/options': './src/options/options.ts',
-    'background': './src/background.ts'
   },
   output: {
     path: path.resolve(__dirname, 'dist'),
     filename: '[name].js',
-    clean: true
+    clean: true,
   },
   module: {
     rules: [
       {
         test: /\.ts$/,
-        use: 'ts-loader',
-        exclude: /node_modules/
+        loader: 'ts-loader',
+        options: { transpileOnly: true },
+        exclude: /node_modules/,
       },
       {
         test: /\.css$/,
-        use: [
-          MiniCssExtractPlugin.loader,
-          'css-loader',
-          'postcss-loader'
-        ]
-      }
-    ]
+        use: [MiniCssExtractPlugin.loader, 'css-loader', 'postcss-loader'],
+      },
+    ],
   },
   resolve: {
     extensions: ['.ts', '.js'],
-    alias: {
-      '@': path.resolve(__dirname, 'src')
-    }
+    alias: { '@': path.resolve(__dirname, 'src') },
   },
   plugins: [
-    new MiniCssExtractPlugin({
-      filename: '[name].css'
-    }),
+    new MiniCssExtractPlugin({ filename: '[name].css' }),
     new CopyWebpackPlugin({
       patterns: [
+        { from: 'manifest.json' },
+        { from: 'icons', to: 'icons' },
+        { from: '_locales', to: '_locales' },
+        { from: 'src/popup/popup.html', to: 'popup/popup.html' },
+        { from: 'src/options/options.html', to: 'options/options.html' },
+        // Ships the gzipped kuromoji dictionaries; they are decompressed at runtime.
         {
-          from: 'manifest.json',
-          to: 'manifest.json'
+          from: 'node_modules/@patdx/kuromoji/dict/*.dat.gz',
+          to: 'dict/kuromoji/[name][ext]',
         },
         {
-          from: 'icons',
-          to: 'icons'
+          from: 'dict/*.json',
+          to: 'dict/[name][ext]',
+          transform: content => JSON.stringify(JSON.parse(content.toString())),
         },
-        {
-          from: 'dict/kuromoji/*.gz',
-          to: 'dict/kuromoji/[name]',
-          transform(content) {
-            return zlib.gunzipSync(content);
-          },
-        },
-        {
-          from: 'dict/jlpt.json',
-          to: 'dict/jlpt.json'
-        },
-        {
-          from: 'src/popup/popup.html',
-          to: 'popup/popup.html'
-        },
-        {
-          from: 'src/options/options.html',
-          to: 'options/options.html'
-        }
-      ]
-    })
+      ],
+    }),
   ],
-  devtool: 'source-map'
-};
+  devtool: argv.mode === 'development' ? 'cheap-module-source-map' : false,
+  performance: { hints: false },
+})
