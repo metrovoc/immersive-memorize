@@ -4,7 +4,7 @@ const UI_STYLES = `
   :host { all: initial; }
   * { box-sizing: border-box; }
   .layer {
-    position: fixed; inset: 0; pointer-events: none;
+    position: fixed; inset: 0; z-index: 2147483647; pointer-events: none;
     font: 14px/1.4 system-ui, -apple-system, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
     color: #111827;
   }
