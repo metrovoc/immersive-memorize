@@ -8,7 +8,9 @@ const load = (locale: string): Messages =>
   JSON.parse(readFileSync(new URL(`../_locales/${locale}/messages.json`, import.meta.url), 'utf8'))
 
 const english = load('en')
-const locales = readdirSync(new URL('../_locales', import.meta.url))
+const locales = readdirSync(new URL('../_locales', import.meta.url), { withFileTypes: true })
+  .filter(entry => entry.isDirectory())
+  .map(entry => entry.name)
 const placeholders = (message: string) => (message.match(/\$\d/g) ?? []).sort()
 
 describe('locales', () => {
