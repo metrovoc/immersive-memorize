@@ -13,4 +13,4 @@ Read [README.md](README.md) for the features and the code layout. Run `npm run c
 
 ## Releases
 
-`npm version minor` (or `patch`) updates `manifest.json` and `CHANGELOG.md`, commits and tags. Pushing the tag builds the zip and publishes a GitHub release; the same zip is uploaded to the Chrome Web Store.
+`npm version minor` (or `patch`) updates `manifest.json` and `CHANGELOG.md`, commits and tags. Pushing the tag builds the zip, publishes a GitHub release and submits the same zip for Chrome Web Store review through `scripts/publish-chrome-web-store.sh`. The workflow signs in to Google as a service account through GitHub's OIDC token, so the repository holds no store credentials.

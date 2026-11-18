@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
   build:
@@ -66,3 +67,18 @@ jobs:
           name: Immersive Memorize ${{ steps.version.outputs.version }}
           body_path: release-notes.md
           files: immersive-memorize-${{ steps.version.outputs.version }}.zip
+
+      - uses: google-github-actions/auth@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        id: google
+        with:
+          workload_identity_provider: projects/215566910317/locations/global/workloadIdentityPools/github/providers/github
+          service_account: cws-publisher@immersive-memorize-cws.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+
+      - name: Publish to the Chrome Web Store
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          CWS_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+        run: scripts/publish-chrome-web-store.sh immersive-memorize-${{ steps.version.outputs.version }}.zip
